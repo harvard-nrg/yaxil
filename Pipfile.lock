@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e41ca673986620fb5caea1fb159a909f4fb795ed0c95a1ed512e7831a269a89b"
+            "sha256": "c937453c46d71bceb3d95e90f99838899e124a34b3b0bf33de1625de8f7c52f1"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -128,6 +128,15 @@
             ],
             "version": "==2.18"
         },
+        "pydicom": {
+            "hashes": [
+                "sha256:29bd6959a3800e02ba58fb10386b553a4230c4697a40843493e2aa85800764c3",
+                "sha256:5c329dddfff964e3cdb53df13f1206e24abddd83a481087b53dcc2c541aa63db",
+                "sha256:9e3cb1d4e2f46203bf2785cf26d3897868e40e167110e4559603b20eff9bc1ec"
+            ],
+            "index": "pypi",
+            "version": "==1.1.0"
+        },
         "pyopenssl": {
             "hashes": [
                 "sha256:26ff56a6b5ecaf3a2a59f132681e2a80afcc76b4f902f612f518f92c2a1bf854",
@@ -191,7 +200,7 @@
                 "sha256:330cc27ccbf7f1e992e69fef78261dc7c6569012cf397db8d3de0234e6c937ca",
                 "sha256:a7bb0f2cf3a3fd1ab2732cb49eba4252c2af4240442415b4abce3b87022a8f50"
             ],
-            "markers": "python_version < '3.0'",
+            "markers": "python_version < '3.3'",
             "version": "==1.0.2"
         },
         "mock": {

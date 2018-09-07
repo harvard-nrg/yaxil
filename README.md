@@ -8,7 +8,7 @@ world was not in need of yet another XNAT library, but it's all good.
 ## Table of contents
 1. [Requirements](#requirements)
 2. [Installation](#installation)
-3. [Basic usage](#basic-usage)
+3. [Example usage](#example-usage)
 
 ## Requirements
 Works with Python 2 and 3 on Linux and macOS (at least that's the goal).
@@ -20,9 +20,12 @@ Most of the time you'll want to use `pip`
 pip install yaxil
 ```
 
-## Basic usage
+## Example usage
 There are all sorts of functions in `yaxil` that help you get what you need from 
-XNAT with a `requests`-like feel and some safety nets
+XNAT with a `requests`-like feel and some safety nets.
+
+You can use `yaxil` to resolve the unique XNAT Accession ID for a given MR 
+Session Label and be warned of any collisions
 
 ```python
 >>> import yaxil
@@ -38,13 +41,7 @@ yaxil.MultipleAccessionError: too many accession ids returned for label MR_SESSI
 >>> aid = yaxil.accession(auth, 'MR_SESSION_LABEL', project='ProjectA')
 ```
 
-You can also use `yaxil` to download data from XNAT
-
-```python
->>> yaxil.download(auth, aid, [11, 12, 14], out_dir='./dicomz')
-```
-
-You can also query for scans by supplying a `dict` of keys and corresponding SQL 
+Then you can query for the scans you need by supplying a `dict` of SQL 
 conditions
 
 ```python
@@ -68,5 +65,28 @@ conditions
 }
 ```
 
-things like this.
+Then you can download your scans from XNAT
 
+```python
+>>> yaxil.download(auth, aid, [11, 12, 14], out_dir='./dicomz')
+```
+
+And finally you can import `yaxil.dicom` to index your downloaded DICOM files 
+and do things with them
+
+```python
+import yaxil.dicom
+
+index = yaxil.dicom.search('./dicomz')
+
+for study,series in iter(index.items()):
+  print("Study {0}".format(study))
+  for series,instances in iter(series.items()):
+    print("  Series {0}".format(series))
+    for instance,files in iter(instances.items()):
+      print("    Instance {0}".format(instance))
+      for f in files:
+        print("     File {0}".format(f.file))
+```
+
+things like this.
