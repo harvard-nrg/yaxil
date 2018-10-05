@@ -1,4 +1,5 @@
 import pickle
+from functools import wraps
 
 def lru_cache(fn):
     '''
@@ -10,6 +11,7 @@ def lru_cache(fn):
     :returns: Memoized function
     :rtype: function
     '''
+    @wraps(fn)
     def memoized_fn(*args):
         pargs = pickle.dumps(args)
         if pargs not in memoized_fn.cache:

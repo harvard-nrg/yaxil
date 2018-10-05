@@ -13,10 +13,14 @@ import requests
 import itertools
 import tempfile as tf
 import collections as col
-import yaxil.commons as commons
-import yaxil.functools as functools
 import xml.etree.ElementTree as etree
 from argparse import Namespace
+import yaxil.commons as commons
+import yaxil.functools as functools
+from .exceptions import (AuthError, MultipleAccessionError,  NullAccessionError,
+                         AccessionError, DownloadError, ResultSetError,
+                         ScanSearchError, EQCNotFoundError, RestApiError,
+                         AutoboxError)
 
 # Whether to verify SSL certificates. Primarily of use during testing.
 CHECK_CERTIFICATE = True
@@ -25,14 +29,19 @@ logger = logging.getLogger(__name__)
 logging.getLogger("requests").setLevel(logging.WARNING)
 
 class Format(object):
+    '''
+    A container to hold possible API response formats Format.JSON, 
+    Format.XML, and Format.CSV.
+    '''
     JSON  = "json"
     XML   = "xml"
     CSV   = "csv"
-'''
-Container to expose various REST API output formats.
-'''
 
-XnatAuth = col.namedtuple("XnatAuth", ["url", "username", "password"])
+XnatAuth = col.namedtuple("XnatAuth", [
+    "url",
+    "username",
+    "password"
+])
 '''
 Container to hold XNAT authentication information. Fields include the url, 
 username, and password.
@@ -41,11 +50,14 @@ username, and password.
 @functools.lru_cache
 def auth(alias, cfg="~/.xnat_auth"):
     '''
-    Read url, username, and password from xnat auth file.
-    Example usage::
-        >>> out = auth("gspcentral")
-        >>> out.url, out.username, out.password
-        ('http://gspcentral.dipr.partners.org/', 'fooman', '1337')
+    Read connection details from properly formatted xnat_auth XML file.
+
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.auth('xnatastic')
+        >>> auth.url, auth.username, auth.password
+        ('https://www.xnatastic.org/', 'username', '********')
+
     :param alias: XNAT alias
     :type alias: str
     :param cfg: Configuration file
@@ -88,10 +100,19 @@ def auth(alias, cfg="~/.xnat_auth"):
     return XnatAuth(url=url.pop().text, username=username.pop().text, 
                         password=password.pop().text)
 
-class AuthError(Exception):
-    pass
+Subject = col.namedtuple("Subject", [
+    "uri",
+    "label",
+    "id",
+    "project",
+    "experiments"
+])
+'''
+Container to hold XNAT Subject information. Fields include the URI (uri), 
+Accession ID (id), Project (project), Label (label), and Experiments 
+(experiments).
+'''
 
-Subject = col.namedtuple("Subject", ["uri", "label", "id", "project", "experiments"])
 
 def subject(auth, label, project=None):
     '''
@@ -99,11 +120,13 @@ def subject(auth, label, project=None):
     Subject label. If the Subject label is tied to mulitple Accession IDs, a 
     Project argument must be specified.
     
-    Example usage::
-        >>> info = auth("gspcentral")
-        >>> subject(info, "AB1234C")
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> yaxil.subject(auth, 'AB1234C')
         Subject(uri=u'/data/experiments/XNAT_S0001', label=u'AB1234C', id=u'XNAT_S0001', 
             project=u'MyProject', experiments=[u'XNAT_E0001', u'XNAT_E0002'])
+
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
     :param label: XNAT Subject label
@@ -150,8 +173,15 @@ def subject(auth, label, project=None):
     return Subject(uri=uri, id=ids.pop(), project=projects.pop(),
                    label=label, experiments=experiments)
 
-Experiment = col.namedtuple("Experiment", ["uri", "label", "id", "project", 
-                                           "subject_id", "subject_label", "archived_date"])
+Experiment = col.namedtuple("Experiment", [
+    "uri",
+    "label",
+    "id",
+    "project",
+    "subject_id",
+    "subject_label",
+    "archived_date"
+])
 '''
 Container to hold XNAT Experiment information. Fields include the URI (uri), 
 Accession ID (id), Project (project), Label (label), Subject Accession ID (subject_id),
@@ -164,12 +194,13 @@ def experiment(auth, label, project=None):
     label. If label is tied to multiple Accession IDs, a Project must be 
     specified.
     
-    Example usage::
-        >>> from yaxil import auth, experiment
-        >>> info = auth("gspcentral")
-        >>> experiment(info, "AB1234C")
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> yaxil.experiment(auth, 'AB1234C')
         Experiment(uri=u'/data/experiments/XNAT_E0001', label=u'AB1234C', id=u'XNAT_E0001', 
             project=u'MyProject', subject_id=u'XNAT_S0001', subject_label='ABC')
+
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
     :param label: XNAT Experiment label
@@ -220,19 +251,17 @@ def experiment(auth, label, project=None):
                       subject_label=r["subject_label"], 
                       archived_date=r["insert_date"])
 
-class MultipleAccessionError(Exception):
-    pass
-
-class NullAccessionError(Exception):
-    pass
-
-class AccessionError(Exception):
-    pass
-
 def accession(auth, label, project=None):
     '''
     Get the Accession ID for any experiment label. If label is tied to 
     multiple Accession IDs, a Project must be supplied.
+
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> yaxil.accession(auth, 'AB1234C')
+        u'XNAT_E00001'
+
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
     :param label: XNAT Experiment label
@@ -247,12 +276,14 @@ def accession(auth, label, project=None):
 def download(auth, accession, ids, out_dir='.', in_mem=True, progress=False, 
              attempts=1):
     '''
-    Download scan data from XNAT with all the trimmings.
+    Download scan data from XNAT.
     
-    Example usage::
-        >>> info = auth("gspcentral")
-        >>> aid = accession(info, "AB1234C")
-        >>> download(info, aid, [1, 2], out_dir="./data"})
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> aid = yaxil.accession(auth, 'AB1234C')
+        >>> yaxil.download(auth, aid, [1, 2], out_dir='./data')
+
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
     :param accession: XNAT Accession ID
@@ -329,11 +360,11 @@ def download(auth, accession, ids, out_dir='.', in_mem=True, progress=False,
     logger.debug("extracting zip archive to %s", out_dir)
     extract(zf, content, out_dir)
 
-
 def extract(zf, content, out_dir='.'):
     '''
-    Extract a Java 1.6 XNAT ZIP archive
-    
+    Extracting a Java 1.6 XNAT ZIP archive in Python which is not as trivial as
+    it first seems.
+
     :param zf: ZipFile object
     :type zf: zipfile.ZipFile
     :param out_dir: Output directory
@@ -382,12 +413,10 @@ def extract(zf, content, out_dir='.'):
         with open(f, "wb") as fo:
             fo.write(bio.read())
 
-class DownloadError(Exception):
-    pass
-
 def __validate(r, check=("ResultSet", "Result", "totalRecords")):
     '''
     Validate JSON result set.
+
     :param r: Result set data in JSON format
     :type r: dict
     :param check: Fields to check
@@ -403,21 +432,20 @@ def __validate(r, check=("ResultSet", "Result", "totalRecords")):
         raise ResultSetError("no 'totalRecords' in 'ResultSet'")
     return True
 
-class ResultSetError(Exception):
-    pass
-
 def scansearch(auth, accession, filt):
     '''
     Search for scans by supplying a set of SQL-based conditionals.
 
-    Example usage::
-        >>> from yaxil import scansearch
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> aid = yaxil.accession(auth, 'AB1234C')
         >>> query = {
-        ...   "eor1": "note LIKE %EOR1%",
-        ...   "eor2": "note LIKE %EOR2%",
-        ...   "mpr":  "series_description='T1_MEMPRAGE RMS' OR note LIKE %ANAT%"
+        ...   'eor1': "note LIKE %EOR1%",
+        ...   'eor2': "note LIKE %EOR2%",
+        ...   'mpr':  "series_description='T1_MEMPRAGE RMS' OR note LIKE %ANAT%"
         ... }
-        >>> scansearch(auth, accession, query)
+        >>> yaxil.scansearch(auth, aid, query)
         {"mpr": [4], "eor1": [13], "eor2": [14]}
 
     :param auth: XNAT authentication
@@ -459,16 +487,16 @@ def scansearch(auth, accession, filt):
             raise
     return result
 
-class ScanSearchError(Exception):
-    pass
-
 def scans(auth, fmt, autobox=True, accession=None, project=None):
     '''
     Get scan information.
     
-    Example usage::
-        >>> from yaxil import scans
-        >>> scans(auth, Format.CSV)
+    Example:
+        >>> import yaxil
+        >>> from yaxil import Format
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> aid = yaxil.accession(auth, 'AB1234C')
+        >>> csv = yaxil.scans(auth, Format.CSV, accession=aid)
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -483,7 +511,7 @@ def scans(auth, fmt, autobox=True, accession=None, project=None):
     :param project: XNAT Project ID
     :type project: str
     :returns: Requested scan data
-    :rtype: :mod:`dict` | :mod:`ElementTree` | :mod:`csv.reader` | :mod:`sqlite3.Connection`
+    :rtype: :mod:`dict` | :mod:`ElementTree` | :mod:`csv.reader`
     '''
     x = __patch1(scans, auth, project, fmt, "xnat:mrSessionData")
     if x:
@@ -539,21 +567,135 @@ scans.columns = {
     "xnat:mrscandata/parameters/pixelbandwidth": "pix_bandwidth"
 }
 
+def extendedboldqc(auth, fmt, autobox=True, accession=None, project=None):
+    '''
+    Get ExtendedBOLDQC information
+
+    Example:
+        >>> import yaxil
+        >>> from yaxil import Format
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> aid = yaxil.accession(auth, 'AB1234C')
+        >>> js = yaxil.extendedboldqc(auth, Format.JSON, accession=aid)
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param accession: XNAT Accession ID
+    :type accession: str
+    :param fmt: Saved search format
+    :type fmt: :mod:`yaxil.Format`
+    :param autobox: Autobox response data into a reader or data structure
+    :type autobox: bool
+    :param accession: XNAT Accession ID
+    :type accession: str
+    :param project: XNAT Project ID
+    :type project: str
+    :returns: Requested ExtendedBOLDQC data
+    :rtype: :mod:`dict` | :mod:`ElementTree` | :mod:`csv.reader`
+    '''
+    x = __patch1(extqc, auth, project, fmt, "neuroinfo:extendedboldqc")
+    if x:
+        return x
+    path = "/data/experiments"
+    params = {
+        "xsiType": "neuroinfo:extendedboldqc",
+        "columns": ','.join(extendedboldqc.columns.keys())
+    }
+    if project:
+        params["project"] = project
+    if accession:
+        params["xnat:mrSessionData/ID"] = accession
+    _,result = get(auth, path, fmt, autobox=autobox, params=params)
+    return result
+extqc = extendedboldqc
+extendedboldqc.columns = {
+    "xnat:mrsessiondata/id": "session_id",
+    "xnat:mrsessiondata/label": "session_label",
+    "xnat:mrsessiondata/project": "project",
+    "xnat:subjectdata/label": "subject_label",
+    "xnat:subjectdata/id": "subject_id",
+    "neuroinfo:extendedboldqc/id": "id",
+    "neuroinfo:extendedboldqc/scan/scan_id": "scan_id",
+    "neuroinfo:extendedboldqc/pipeline/status": "status",
+    "neuroinfo:extendedboldqc/scan/n_vols": "nvols",
+    "neuroinfo:extendedboldqc/scan/skip": "skip",
+    "neuroinfo:extendedboldqc/scan/qc_thresh": "mask_threshold",
+    "neuroinfo:extendedboldqc/scan/qc_nvox": "nvoxels",
+    "neuroinfo:extendedboldqc/scan/qc_mean": "mean",
+    "neuroinfo:extendedboldqc/scan/qc_max": "max",
+    "neuroinfo:extendedboldqc/scan/qc_min": "min",
+    "neuroinfo:extendedboldqc/scan/qc_stdev": "stdev",
+    "neuroinfo:extendedboldqc/scan/qc_ssnr": "ssnr",
+    "neuroinfo:extendedboldqc/scan/qc_vsnr": "vsnr",
+    "neuroinfo:extendedboldqc/scan/qc_slope": "slope",
+    "neuroinfo:extendedboldqc/scan/mot_n_tps": "mot_n_tps",
+    "neuroinfo:extendedboldqc/scan/mot_rel_x_sd": "mot_rel_x_sd",
+    "neuroinfo:extendedboldqc/scan/mot_rel_x_max": "mot_rel_x_max",
+    "neuroinfo:extendedboldqc/scan/mot_rel_x_1mm": "mot_rel_x_1mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_x_5mm": "mot_rel_x_5mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_y_mean": "mot_rel_y_mean",
+    "neuroinfo:extendedboldqc/scan/mot_rel_y_sd": "mot_rel_y_sd",
+    "neuroinfo:extendedboldqc/scan/mot_rel_y_max": "mot_rel_y_max",
+    "neuroinfo:extendedboldqc/scan/mot_rel_y_1mm": "mot_rel_y_1mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_y_5mm": "mot_rel_y_5mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_z_mean": "mot_rel_z_mean",
+    "neuroinfo:extendedboldqc/scan/mot_rel_z_sd": "mot_rel_z_sd",
+    "neuroinfo:extendedboldqc/scan/mot_rel_z_max": "mot_rel_z_max",
+    "neuroinfo:extendedboldqc/scan/mot_rel_z_1mm": "mot_rel_z_1mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_z_5mm": "mot_rel_z_5mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_mean": "mot_rel_xyz_mean",
+    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_sd": "mot_rel_xyz_sd",
+    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_max": "mot_rel_xyz_max",
+    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_1mm": "mot_rel_xyz_1mm",
+    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_5mm": "mot_rel_xyz_5mm",
+    "neuroinfo:extendedboldqc/scan/rot_rel_x_mean": "rot_rel_x_mean",
+    "neuroinfo:extendedboldqc/scan/rot_rel_x_sd": "rot_rel_x_sd",
+    "neuroinfo:extendedboldqc/scan/rot_rel_x_max": "rot_rel_x_max",
+    "neuroinfo:extendedboldqc/scan/rot_rel_y_mean": "rot_rel_y_mean",
+    "neuroinfo:extendedboldqc/scan/rot_rel_y_sd": "rot_rel_y_sd",
+    "neuroinfo:extendedboldqc/scan/rot_rel_y_max": "rot_rel_y_max",
+    "neuroinfo:extendedboldqc/scan/rot_rel_z_mean": "rot_rel_z_mean",
+    "neuroinfo:extendedboldqc/scan/rot_rel_z_sd": "rot_rel_z_sd",
+    "neuroinfo:extendedboldqc/scan/rot_rel_z_max": "rot_rel_z_max",
+    "neuroinfo:extendedboldqc/scan/mot_abs_x_mean": "mot_abs_x_mean",
+    "neuroinfo:extendedboldqc/scan/mot_abs_x_sd": "mot_abs_x_sd",
+    "neuroinfo:extendedboldqc/scan/mot_abs_x_max": "mot_abs_x_max",
+    "neuroinfo:extendedboldqc/scan/mot_abs_y_mean": "mot_abs_y_mean",
+    "neuroinfo:extendedboldqc/scan/mot_abs_y_sd": "mot_abs_y_sd",
+    "neuroinfo:extendedboldqc/scan/mot_abs_y_max": "mot_abs_y_max",
+    "neuroinfo:extendedboldqc/scan/mot_abs_z_mean": "mot_abs_z_mean",
+    "neuroinfo:extendedboldqc/scan/mot_abs_z_sd": "mot_abs_z_sd",
+    "neuroinfo:extendedboldqc/scan/mot_abs_z_max": "mot_abs_z_max",
+    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_mean": "mot_abs_xyz_mean",
+    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_sd": "mot_abs_xyz_sd",
+    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_max": "mot_abs_xyz_max",
+    "neuroinfo:extendedboldqc/scan/rot_abs_x_mean": "rot_abs_x_mean",
+    "neuroinfo:extendedboldqc/scan/rot_abs_x_sd": "rot_abs_x_sd",
+    "neuroinfo:extendedboldqc/scan/rot_abs_x_max": "rot_abs_x_max",
+    "neuroinfo:extendedboldqc/scan/rot_abs_y_mean": "rot_abs_y_mean",
+    "neuroinfo:extendedboldqc/scan/rot_abs_y_sd": "rot_abs_y_sd",
+    "neuroinfo:extendedboldqc/scan/rot_abs_y_max": "rot_abs_y_max",
+    "neuroinfo:extendedboldqc/scan/rot_abs_z_mean": "rot_abs_z_mean",
+    "neuroinfo:extendedboldqc/scan/rot_abs_z_sd": "rot_abs_z_sd",
+    "neuroinfo:extendedboldqc/scan/rot_abs_z_max": "rot_abs_z_max"
+}
+
 def get(auth, path, fmt, autobox=True, params=None):
     '''
     Issue a GET request to the XNAT REST API and autobox the response content.
     
-    Example usage::
-        >>> from yaxil import auth, get, Format
-        >>> info = auth("gspcentral")
-        >>> get(info, "/data/experiments", Format.JSON)
+    Example:
+        >>> import yaxil
+        >>> from yaxil import Format
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> yaxil.get(auth, '/data/experiments', Format.JSON)
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
     :param path: API URL path
     :type path: str
     :param fmt: API result format
-    :type fmt: :mod:`pylib.xnat.Format`
+    :type fmt: :mod:`yaxil.Format`
     :param params: Additional query parameters
     :type params: dict
     :param autobox: Autobox response content into an appropriate reader or other data structure
@@ -577,9 +719,6 @@ def get(auth, path, fmt, autobox=True, params=None):
     else:
         return r.url,r.content
 
-class RestApiError(Exception):
-    pass
-
 def _autobox(content, format):
     '''
     Autobox response content
@@ -588,7 +727,7 @@ def _autobox(content, format):
     :type content: str
     :returns: Autoboxed content
     :param format: Format to return
-    :type format: `pylib.xnat.Format`
+    :type format: `yaxil.Format`
     :rtype: dict|xml.etree.ElementTree.Element|csvreader
     '''
     if format == Format.JSON:
@@ -614,12 +753,14 @@ def _autobox(content, format):
     else:
         raise AutoboxError("unknown autobox format %s" % format)
 
-class AutoboxError(Exception):
-    pass
-
 def has(auth, xsitype, project=None):
     '''
     Test if a Project contains any items of a particular xsi:type
+
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> yaxil.has(auth, 'neuroinfo:extendedboldqc', project='MyProject')
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -645,7 +786,6 @@ def has(auth, xsitype, project=None):
     if int(result["ResultSet"]["totalRecords"]) == 0:
         return False
     return True
-
 
 def __patch1(f, auth, project, fmt, xsitype):
     '''

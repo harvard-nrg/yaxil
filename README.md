@@ -1,14 +1,16 @@
 YAXIL: Yet another XNAT interface library
 =========================================
-Yaxil was (and still is) an internally developed XNAT interface library that 
-started a long time ago in a galaxy far, far away. It works with Python 2 and 
-3 and XNAT 1.4 through 1.7. It smooths over some aches and pains. I know the 
-world was not in need of yet another XNAT library, but it's all good.
+Yaxil is an XNAT interface library that started a long time ago in a galaxy far, 
+far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. There are 
+very simple functions for querying XNAT, searching for MRI scans, downloading 
+imaging data, and it smooths over various aches and pains. I know the world was 
+not in need of yet another XNAT library, but it's all good.
 
 ## Table of contents
 1. [Requirements](#requirements)
 2. [Installation](#installation)
-3. [Example usage](#example-usage)
+3. [Documentation](#documentation)
+4. [Example usage](#example-usage)
 
 ## Requirements
 Works with Python 2 and 3 on Linux and macOS (at least that's the goal).
@@ -19,6 +21,9 @@ Most of the time you'll want to use `pip`
 ```bash
 pip install yaxil
 ```
+
+## Documentation
+Full documentation can be found at <http://yaxil.readthedocs.io/>.
 
 ## Example usage
 There are all sorts of functions in `yaxil` that help you get what you need from 
