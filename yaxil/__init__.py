@@ -63,7 +63,7 @@ def session(auth):
 
         auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
 
-        with yaxil.Session(auth) as sess:
+        with yaxil.session(auth) as sess:
             aid = sess.accession('AB123C')
             experiment = sess.experiment(aid)
             sess.download(aid, [1], out_dir='dicomz')
