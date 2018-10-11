@@ -13,7 +13,9 @@ far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. This
 documentation covers all of the functions and classes in YAXIL and examples 
 to help you get going. 
 
-Here's an example of YAXIL in action::
+Here's an example of YAXIL in action
+
+.. code-block:: python
 
   import yaxil
   
@@ -24,6 +26,23 @@ Here's an example of YAXIL in action::
   }
   scans = yaxil.scansearch(auth, aid, query)
   yaxil.download(auth, aid, scans['anat'], out_dir='dicomz')
+
+Or you can ditch explicitly passing ``auth`` to every function and just use 
+a ``session`` context
+
+.. code-block:: python
+
+  import yaxil
+  
+  auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
+
+  with yaxil.session(auth) as sess:
+    aid = sess.accession('AB123C')
+    query = {
+        'anat': 'note == "ANAT1"'
+    }
+    scans = sess.scansearch(aid, query)
+    sess.download(aid, scans['anat'], out_dir='dicomz')
 
 Huzzah!!
 
@@ -36,4 +55,3 @@ If you are looking for information on a specific function, read this
    :maxdepth: 2
 
    api
-

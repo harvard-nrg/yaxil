@@ -13,10 +13,13 @@ import requests
 import itertools
 import tempfile as tf
 import collections as col
-import xml.etree.ElementTree as etree
 from argparse import Namespace
+from contextlib import contextmanager
+import xml.etree.ElementTree as etree
+
 import yaxil.commons as commons
 import yaxil.functools as functools
+from .session import Session
 from .exceptions import (AuthError, MultipleAccessionError,  NullAccessionError,
                          AccessionError, DownloadError, ResultSetError,
                          ScanSearchError, EQCNotFoundError, RestApiError,
@@ -47,10 +50,36 @@ Container to hold XNAT authentication information. Fields include the url,
 username, and password.
 '''
 
+@contextmanager
+def session(auth):
+    '''
+    Create a session context to avoid explicitly passing authentication
+
+    Example:
+
+    .. code-block:: python
+
+        import yaxil
+
+        auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
+
+        with yaxil.Session(auth) as sess:
+            aid = sess.accession('AB123C')
+            experiment = sess.experiment(aid)
+            sess.download(aid, [1], out_dir='dicomz')
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :returns: YAXIL session object
+    :rtype: :mod:`yaxil.session.Session`
+    '''
+    sess = Session(auth)
+    yield sess
+
 @functools.lru_cache
 def auth(alias, cfg="~/.xnat_auth"):
     '''
-    Read connection details from properly formatted xnat_auth XML file.
+    Read connection details from an xnat_auth XML file
 
     Example:
         >>> import yaxil
@@ -112,7 +141,6 @@ Container to hold XNAT Subject information. Fields include the URI (uri),
 Accession ID (id), Project (project), Label (label), and Experiments 
 (experiments).
 '''
-
 
 def subject(auth, label, project=None):
     '''
