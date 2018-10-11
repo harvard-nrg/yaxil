@@ -168,8 +168,10 @@ def subject(auth, label, project=None):
         raise AccessionError("label cannot be empty")
     url = "%s/data/subjects" % auth.url.rstrip('/')
     logger.debug("issuing http request %s", url)
-    payload = {"label": label, 
-               "columns": "ID,label,project,xnat:mrsessiondata/id,xnat:mrsessiondata/label"}
+    payload = {
+        "label": label,
+        "columns": "ID,label,project,xnat:mrsessiondata/id,xnat:mrsessiondata/label"
+    }
     if project:
         payload["project"] = project
     r = requests.get(url, params=payload, auth=(auth.username, auth.password), 
@@ -515,6 +517,45 @@ def scansearch(auth, accession, filt):
             raise
     return result
 
+def scans2(auth, label, scan_ids=None, project=None, aid=None):
+    '''
+    Get scan information as a series of dictionaries
+
+    Example:
+        >>> import yaxil, json
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> for scan in yaxil.scans2(auth, 'AB1234C'):
+        ...     print(json.dumps(scan, indent=2))
+
+    :param auth: XNAT authentication object
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param label: XNAT MR Session label
+    :type label: str
+    :param scan_ids: Scan numbers to return
+    :type scan_ids: list
+    :param project: XNAT MR Session project
+    :type project: str
+    :param accession: XNAT Accession ID
+    :type accession: str
+    :returns: Generator of scan data dictionaries
+    :rtype: :mod:`dict`
+    '''
+    if not aid:
+        aid = accession(auth, label, project)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'xnat:mrSessionData',
+        'columns': ','.join(scans.columns.keys())
+    }
+    params['xnat:mrSessionData/ID'] = aid
+    _,result = get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if scan_ids == None or result['xnat:mrscandata/id'] in scan_ids:
+            data = dict()
+            for k,v in iter(scans.columns.items()):
+                data[v] = result[k]
+            yield data
+
 def scans(auth, fmt, autobox=True, accession=None, project=None):
     '''
     Get scan information.
@@ -575,7 +616,7 @@ scans.columns = {
     "xnat:mrscandata/scanner/manufacturer": "scanner_manufacturer",
     "xnat:mrscandata/scanner/model": "scanner_model",
     "xnat:mrscandata/frames": "frames",
-    "xnat:mrscandata/fieldStrength": "field_strength",
+    "xnat:mrscandata/fieldstrength": "field_strength",
     "xnat:mrscandata/note": "note",
     "xnat:mrscandata/type": "type",
     "xnat:mrscandata/parameters/voxelres/x": "vox_x",
@@ -594,6 +635,48 @@ scans.columns = {
     "xnat:mrscandata/parameters/acqtype": "acquisition_type",
     "xnat:mrscandata/parameters/pixelbandwidth": "pix_bandwidth"
 }
+
+def extendedboldqc2(auth, label, scan_ids=None, project=None, aid=None):
+    '''
+    Get ExtendedBOLDQC data as a series of dictionaries
+
+    Example:
+        >>> import json
+        >>> import yaxil
+        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> for eqc in yaxil.extendedboldqc2(auth, 'AB1234C')
+        ...     print(json.dumps(eqc, indent=2))
+
+    :param auth: XNAT authentication object
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param label: XNAT MR Session label
+    :type label: str
+    :param scan_ids: Scan numbers to return
+    :type scan_ids: list
+    :param project: XNAT MR Session project
+    :type project: str
+    :param accession: XNAT Accession ID
+    :type accession: str
+    :returns: Generator of scan data dictionaries
+    :rtype: :mod:`dict`
+    '''
+    if not aid:
+        aid = accession(auth, label, project)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'neuroinfo:extendedboldqc',
+        'columns': ','.join(extendedboldqc.columns.keys())
+    }
+    if project:
+        params['project'] = project
+    params['xnat:mrSessionData/ID'] = aid
+    _,result = get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if scan_ids == None or result['neuroinfo:extendedboldqc/scan/scan_id'] in scan_ids:
+            data = dict()
+            for k,v in iter(extendedboldqc.columns.items()):
+                data[v] = result[k]
+            yield data
 
 def extendedboldqc(auth, fmt, autobox=True, accession=None, project=None):
     '''
@@ -640,7 +723,7 @@ extendedboldqc.columns = {
     "xnat:mrsessiondata/id": "session_id",
     "xnat:mrsessiondata/label": "session_label",
     "xnat:mrsessiondata/project": "project",
-    "xnat:subjectdata/label": "subject_label",
+    "subject_label": "subject_label",
     "xnat:subjectdata/id": "subject_id",
     "neuroinfo:extendedboldqc/id": "id",
     "neuroinfo:extendedboldqc/scan/scan_id": "scan_id",

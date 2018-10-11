@@ -15,7 +15,9 @@ Functions
 .. autofunction:: experiment
 .. autofunction:: accession
 .. autofunction:: extendedboldqc
+.. autofunction:: extendedboldqc2
 .. autofunction:: scans
+.. autofunction:: scans2
 .. autofunction:: scansearch
 .. autofunction:: download
 .. autofunction:: get
