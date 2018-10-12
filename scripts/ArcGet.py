@@ -19,13 +19,17 @@ def main():
     parser.add_argument('-p', '--project', 
         help='XNAT Session Project')
     parser.add_argument('-s', '--scans', nargs='+', 
-        help='Scans numbers filter')
+        help='Raw scans numbers')
+    parser.add_argument('-t', '--types', nargs='+', 
+        help='Scans types')
+    parser.add_argument('-k', '--tasks', nargs='+', 
+        help='Scans tasks(notes)')
     parser.add_argument('--insecure', action='store_true', 
         help='Turn off SSL certificate checking (needed for tunneled connections)')
-    parser.add_argument('--scan-only', action='store_true', 
-        help='Print scan information only')
     parser.add_argument('-o', '--output-dir', default='.', 
         help='Output directory')
+    parser.add_argument('--dry-run', action='store_true',
+        help='Print scants that would be downloaded, but do not download')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     args = parser.parse_args()
@@ -37,55 +41,35 @@ def main():
 
     args.output_dir = os.path.expanduser(args.output_dir)
 
-    # turn off SSL certificate checking
     if args.insecure:
         yaxil.CHECK_CERTIFICATE = False
 
-    # get xnat credentials    
-    info = yaxil.auth(args.alias)
+    auth = yaxil.auth(args.alias)
 
-    # get the accession id for the supplied --label 
-    try:
-        aid = yaxil.accession(info, args.label, args.project)
-    except yaxil.MultipleAccessionError:
-        logger.critical('--label is too ambiguous, please specify --project')
-        sys.exit(1)
+    with yaxil.session(auth) as sess:
+        scan_ids = set(args.scans)
+        # resolve types to scan numbers
+        if args.types:
+            scan_ids.update(resolve(sess, args.label, args.project, 
+                                    targets=args.types, key='type'))
+        # resolve tasks to scan numbers
+        if args.tasks:
+            scan_ids.update(resolve(sess, args.label, args.project, 
+                                    targets=args.tasks, key='note'))
+        # download
+        logger.info('downloading scans %s', list(scan_ids))
+        if not args.dry_run:
+            sess.download(args.label, scan_ids, project=args.project,
+                          out_dir=args.output_dir, progress=1024**2,
+                          attempts=3)
 
-    logger.debug('accession ID is %s' % aid)
-
-    # only print scan information and quit
-    if args.scan_only:
-        scanonly(info, aid)
-        sys.exit(0)
-
-    # check if --scans was provided and query for scans
-    if not args.scans:
-        logger.critical('you must provide --scans')
-        parser.print_help()
-        sys.exit(1)
-
-    if len(args.scans) == 1 and args.scans[0].strip().upper() == 'ALL':
-        scans = ['ALL']
-    else:
-        query = {
-            'scans': 'ID IN (%s)' % ','.join(args.scans)
-        }
-        scans = yaxil.scansearch(info, aid, query)
-        scans = commons.flatten(scans.values())
-
-    # download data
-    yaxil.download(info, aid, scans, out_dir=args.output_dir, progress=1024**2, attempts=3)
-
-def scanonly(credentials, aid):
-    scans = yaxil.scans(credentials, fmt='json', accession=aid)['ResultSet']['Result']
-    scans = [x for x in scans if x['xnat:mrscandata/id']]
-    print('scan\tsequence\ttype\tnote')
-    for scan in sorted(scans, key=lambda x: int(x['xnat:mrscandata/id'])):
-        num = scan['xnat:mrscandata/id']
-        series = scan['xnat:mrscandata/series_description']
-        stype = scan['xnat:mrscandata/type']
-        note = scan['xnat:mrscandata/note']
-        print('%s\t%s\t%s\t%s' % (num, series, stype, note))
+def resolve(sess, label, project, targets, key):
+    scans = list()
+    for scan in sess.scans(label, project=project):
+        if scan[key] in targets:
+            scans.append(scan['id'])
+    return scans
 
 if __name__ == '__main__':
     main()
+

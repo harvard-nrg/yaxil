@@ -14,19 +14,13 @@ class Session(object):
         return yaxil.experiment(self._auth, *args, **kwargs)
 
     def extendedboldqc(self, *args, **kwargs):
-        return yaxil.extendedbolqc(self._auth, *args, **kwargs)
-
-    def extendedboldqc2(self, *args, **kwargs):
-        return yaxil.extendedboldqc2(self._auth, *args, **kwargs)
+        return yaxil.extendedboldqc(self._auth, *args, **kwargs)
 
     def download(self, *args, **kwargs):
         return yaxil.download(self._auth, *args, **kwargs)
 
     def scans(self, *args, **kwargs):
         return yaxil.scans(self._auth, *args, **kwargs)
-
-    def scans2(self, *args, **kwargs):
-        return yaxil.scans2(self._auth, *args, **kwargs)
 
     def scansearch(self, *args, **kwargs):
         return yaxil.scansearch(self._auth, *args, **kwargs)

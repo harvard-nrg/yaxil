@@ -33,7 +33,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 class Format(object):
     '''
-    A container to hold possible API response formats Format.JSON, 
+    A container to hold possible XNAT response formats: Format.JSON, 
     Format.XML, and Format.CSV.
     '''
     JSON  = "json"
@@ -46,14 +46,15 @@ XnatAuth = col.namedtuple("XnatAuth", [
     "password"
 ])
 '''
-Container to hold XNAT authentication information. Fields include the url, 
-username, and password.
+Container to hold XNAT authentication information. Fields include the ``url``, 
+``username``, and ``password``.
 '''
 
 @contextmanager
 def session(auth):
     '''
-    Create a session context to avoid explicitly passing authentication
+    Create a session context to avoid explicitly passing authentication to 
+    every function.
 
     Example:
 
@@ -61,7 +62,7 @@ def session(auth):
 
         import yaxil
 
-        auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
+        auth = yaxil.XnatAuth(url='...', username='...', password='...')
 
         with yaxil.session(auth) as sess:
             aid = sess.accession('AB123C')
@@ -137,16 +138,15 @@ Subject = col.namedtuple("Subject", [
     "experiments"
 ])
 '''
-Container to hold XNAT Subject information. Fields include the URI (uri), 
-Accession ID (id), Project (project), Label (label), and Experiments 
-(experiments).
+Container to hold XNAT Subject information. Fields include the Subject URI 
+(``uri``), Accession ID (``id``), Project (``project``), Label (``label``), 
+and Experiments (``experiments``).
 '''
 
 def subject(auth, label, project=None):
     '''
-    Get the URI, Accession ID, Label, Project, and all Experiment IDs for any 
-    Subject label. If the Subject label is tied to mulitple Accession IDs, a 
-    Project argument must be specified.
+    Retrieve a Subject tuple that contains the URI, accession ID, label, 
+    project, and all experiment IDs for the given subject label.
     
     Example:
         >>> import yaxil
@@ -161,8 +161,8 @@ def subject(auth, label, project=None):
     :type label: str
     :param project: XNAT Subject Project
     :type project: str
-    :returns: Accession ID
-    :rtype: str
+    :returns: Subject object
+    :rtype: :mod:`yaxil.Subject`
     '''
     if not label:
         raise AccessionError("label cannot be empty")
@@ -213,16 +213,16 @@ Experiment = col.namedtuple("Experiment", [
     "archived_date"
 ])
 '''
-Container to hold XNAT Experiment information. Fields include the URI (uri), 
-Accession ID (id), Project (project), Label (label), Subject Accession ID (subject_id),
-Subject label (subject_label), and archived date (archived_date).
+Container to hold XNAT Experiment information. Fields include the Experiment URI 
+(``uri``), Accession ID (``id``), Project (``project``), Label (``label``), 
+Subject Accession ID (``subject_id``), Subject label (``subject_label``), and 
+archived date (``archived_date``).
 '''
 
 def experiment(auth, label, project=None):
     '''
-    Get the URI, Accession ID, Subject ID, and Project for any experiment 
-    label. If label is tied to multiple Accession IDs, a Project must be 
-    specified.
+    Retrieve an Experiment tuple containing the accession ID, subject ID, project,
+    and other relevant fields for any experiment.
     
     Example:
         >>> import yaxil
@@ -237,8 +237,8 @@ def experiment(auth, label, project=None):
     :type label: str
     :param project: XNAT Experiment Project
     :type project: str
-    :returns: Experiment named tuple
-    :rtype: Experiment
+    :returns: Experiment object
+    :rtype: :mod:`yaxil.Experiment`
     '''
     if not label:
         raise AccessionError("label cannot be empty")
@@ -281,10 +281,10 @@ def experiment(auth, label, project=None):
                       subject_label=r["subject_label"], 
                       archived_date=r["insert_date"])
 
+@functools.lru_cache
 def accession(auth, label, project=None):
     '''
-    Get the Accession ID for any experiment label. If label is tied to 
-    multiple Accession IDs, a Project must be supplied.
+    Get the Accession ID for any Experiment label.
 
     Example:
         >>> import yaxil
@@ -303,37 +303,51 @@ def accession(auth, label, project=None):
     '''
     return experiment(auth, label, project).id
 
-def download(auth, accession, ids, out_dir='.', in_mem=True, progress=False, 
-             attempts=1):
+DownloadOpts = col.namedtuple("DownloadOpts", [
+    "in_mem",
+    "progress_bar",
+    "attempts"
+])
+'''
+Container to hold download options. Not in use yet.
+'''
+
+def download(auth, label, scan_ids=None, project=None, aid=None,
+             out_dir='.', in_mem=True, progress=False, attempts=1):
     '''
     Download scan data from XNAT.
     
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> aid = yaxil.accession(auth, 'AB1234C')
-        >>> yaxil.download(auth, aid, [1, 2], out_dir='./data')
+        >>> yaxil.download(auth, 'AB1234C', ['1', '2'], out_dir='./data')
 
-    :param auth: XNAT authentication
+    :param auth: XNAT authentication object
     :type auth: :mod:`yaxil.XnatAuth`
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param ids: Scan IDs (i.e., scan numbers)
-    :type ids: list
+    :param label: XNAT MR Session label
+    :type label: str
+    :param scan_ids: Scan numbers to return; use None for all
+    :type scan_ids: list
+    :param project: XNAT MR Session project
+    :type project: str
+    :param aid: XNAT Accession ID
+    :type aid: str
     :param out_dir: Output directory
     :type out_dir: str
-    :param in_mem: Keep downloaded file content in memory
+    :param in_mem: Keep download content in memory; faster but uses more memory
     :type in_mem: bool
     :param progress: Show download progress every N bytes
     :type progress: int
     :param attempts: Number of download attempts
-    :type retries: int
+    :type attempts: int
     ''' 
+    if not scan_ids:
+        scan_ids = ['ALL']
+    if not aid:
+        aid = accession(auth, label, project)
     # build the url
-    if not ids:
-        raise DownloadError("no scan ids supplied")
     url = "%s/data/experiments/%s/scans/%s/files?format=zip" % (auth.url.rstrip('/'), 
-            accession, ','.join([str(x) for x in ids]))
+            aid, ','.join([str(x) for x in scan_ids]))
     # issue the http request, with exponential backoff retry behavior
     backoff = 10
     for _ in range(attempts): 
@@ -392,8 +406,7 @@ def download(auth, accession, ids, out_dir='.', in_mem=True, progress=False,
 
 def extract(zf, content, out_dir='.'):
     '''
-    Extracting a Java 1.6 XNAT ZIP archive in Python which is not as trivial as
-    it first seems.
+    Extracting a Java 1.6 XNAT ZIP archive in Python.
 
     :param zf: ZipFile object
     :type zf: zipfile.ZipFile
@@ -445,7 +458,7 @@ def extract(zf, content, out_dir='.'):
 
 def __validate(r, check=("ResultSet", "Result", "totalRecords")):
     '''
-    Validate JSON result set.
+    Validate a XNAT returned JSON result set.
 
     :param r: Result set data in JSON format
     :type r: dict
@@ -462,33 +475,38 @@ def __validate(r, check=("ResultSet", "Result", "totalRecords")):
         raise ResultSetError("no 'totalRecords' in 'ResultSet'")
     return True
 
-def scansearch(auth, accession, filt):
+def scansearch(auth, label, filt, project=None, aid=None):
     '''
     Search for scans by supplying a set of SQL-based conditionals.
 
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> aid = yaxil.accession(auth, 'AB1234C')
         >>> query = {
         ...   'eor1': "note LIKE %EOR1%",
         ...   'eor2': "note LIKE %EOR2%",
         ...   'mpr':  "series_description='T1_MEMPRAGE RMS' OR note LIKE %ANAT%"
         ... }
-        >>> yaxil.scansearch(auth, aid, query)
+        >>> yaxil.scansearch(auth, 'AB1234C', query)
         {"mpr": [4], "eor1": [13], "eor2": [14]}
 
-    :param auth: XNAT authentication
+    :param auth: XNAT authentication object
     :type auth: :mod:`yaxil.XnatAuth`
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param filt: Scan filter
+    :param label: XNAT MR Session label
+    :type label: str
+    :param filt: Scan search filter/query
     :type filt: dict
-    :returns: Dictionary of tokens and matching scan ids
+    :param project: XNAT MR Session project
+    :type project: str
+    :param aid: XNAT Accession ID
+    :type aid: str
+    :returns: Same dictionary that was passed in, but values are now matching scans
     :rtype: dict
     '''
+    if not aid:
+        aid = accession(auth, label, project)
     # get scans for accession as a csv
-    url = "%s/data/experiments/%s/scans?format=csv" % (auth.url.rstrip('/'), accession)
+    url = "%s/data/experiments/%s/scans?format=csv" % (auth.url.rstrip('/'), aid)
     logger.debug("issuing http request %s", url)
     r = requests.get(url, auth=(auth.username, auth.password), verify=CHECK_CERTIFICATE)
     if r.status_code != requests.codes.ok:
@@ -505,7 +523,7 @@ def scansearch(auth, accession, filt):
     c.execute("CREATE TABLE scans (%s)" % ','.join(columns))
     query = "INSERT INTO scans VALUES (%s)" % ','.join('?' * len(columns))
     for row in reader:
-        c.execute(query, [commons.cast(x) for x in row])
+        c.execute(query, [x for x in row])
     conn.commit()
     # run the user supplied filters and return result
     result = col.defaultdict(list)
@@ -517,12 +535,13 @@ def scansearch(auth, accession, filt):
             raise
     return result
 
-def scans2(auth, label, scan_ids=None, project=None, aid=None):
+def scans(auth, label, scan_ids=None, project=None, aid=None):
     '''
-    Get scan information as a series of dictionaries
+    Get scan information as a sequence of dictionaries.
 
     Example:
-        >>> import yaxil, json
+        >>> import yaxil
+        >>> import json
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
         >>> for scan in yaxil.scans2(auth, 'AB1234C'):
         ...     print(json.dumps(scan, indent=2))
@@ -535,10 +554,10 @@ def scans2(auth, label, scan_ids=None, project=None, aid=None):
     :type scan_ids: list
     :param project: XNAT MR Session project
     :type project: str
-    :param accession: XNAT Accession ID
-    :type accession: str
+    :param aid: XNAT Accession ID
+    :type aid: str
     :returns: Generator of scan data dictionaries
-    :rtype: :mod:`dict`
+    :rtype: dict
     '''
     if not aid:
         aid = accession(auth, label, project)
@@ -548,54 +567,13 @@ def scans2(auth, label, scan_ids=None, project=None, aid=None):
         'columns': ','.join(scans.columns.keys())
     }
     params['xnat:mrSessionData/ID'] = aid
-    _,result = get(auth, path, 'json', autobox=True, params=params)
+    _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
         if scan_ids == None or result['xnat:mrscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(scans.columns.items()):
                 data[v] = result[k]
             yield data
-
-def scans(auth, fmt, autobox=True, accession=None, project=None):
-    '''
-    Get scan information.
-    
-    Example:
-        >>> import yaxil
-        >>> from yaxil import Format
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> aid = yaxil.accession(auth, 'AB1234C')
-        >>> csv = yaxil.scans(auth, Format.CSV, accession=aid)
-
-    :param auth: XNAT authentication
-    :type auth: :mod:`yaxil.XnatAuth`
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param fmt: Saved search format
-    :type fmt: :mod:`yaxil.Format`
-    :param autobox: Autobox response data into a reader or data structure
-    :type autobox: bool
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param project: XNAT Project ID
-    :type project: str
-    :returns: Requested scan data
-    :rtype: :mod:`dict` | :mod:`ElementTree` | :mod:`csv.reader`
-    '''
-    x = __patch1(scans, auth, project, fmt, "xnat:mrSessionData")
-    if x:
-        return x
-    path = "/data/experiments"
-    params = {
-        "xsiType": "xnat:mrSessionData",
-        "columns": ','.join(scans.columns.keys())
-    }
-    if project:
-        params["project"] = project
-    if accession:
-        params["xnat:mrSessionData/ID"] = accession
-    _,result = get(auth, path, fmt, autobox=autobox, params=params)
-    return result
 scans.columns = {
     "URI": "session_uri",
     "insert_date": "date_archived",
@@ -636,13 +614,13 @@ scans.columns = {
     "xnat:mrscandata/parameters/pixelbandwidth": "pix_bandwidth"
 }
 
-def extendedboldqc2(auth, label, scan_ids=None, project=None, aid=None):
+def extendedboldqc(auth, label, scan_ids=None, project=None, aid=None):
     '''
-    Get ExtendedBOLDQC data as a series of dictionaries
+    Get ExtendedBOLDQC data as a sequence of dictionaries.
 
     Example:
-        >>> import json
         >>> import yaxil
+        >>> import json
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
         >>> for eqc in yaxil.extendedboldqc2(auth, 'AB1234C')
         ...     print(json.dumps(eqc, indent=2))
@@ -655,8 +633,8 @@ def extendedboldqc2(auth, label, scan_ids=None, project=None, aid=None):
     :type scan_ids: list
     :param project: XNAT MR Session project
     :type project: str
-    :param accession: XNAT Accession ID
-    :type accession: str
+    :param aid: XNAT Accession ID
+    :type aid: str
     :returns: Generator of scan data dictionaries
     :rtype: :mod:`dict`
     '''
@@ -670,55 +648,13 @@ def extendedboldqc2(auth, label, scan_ids=None, project=None, aid=None):
     if project:
         params['project'] = project
     params['xnat:mrSessionData/ID'] = aid
-    _,result = get(auth, path, 'json', autobox=True, params=params)
+    _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
         if scan_ids == None or result['neuroinfo:extendedboldqc/scan/scan_id'] in scan_ids:
             data = dict()
             for k,v in iter(extendedboldqc.columns.items()):
                 data[v] = result[k]
             yield data
-
-def extendedboldqc(auth, fmt, autobox=True, accession=None, project=None):
-    '''
-    Get ExtendedBOLDQC information
-
-    Example:
-        >>> import yaxil
-        >>> from yaxil import Format
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> aid = yaxil.accession(auth, 'AB1234C')
-        >>> js = yaxil.extendedboldqc(auth, Format.JSON, accession=aid)
-
-    :param auth: XNAT authentication
-    :type auth: :mod:`yaxil.XnatAuth`
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param fmt: Saved search format
-    :type fmt: :mod:`yaxil.Format`
-    :param autobox: Autobox response data into a reader or data structure
-    :type autobox: bool
-    :param accession: XNAT Accession ID
-    :type accession: str
-    :param project: XNAT Project ID
-    :type project: str
-    :returns: Requested ExtendedBOLDQC data
-    :rtype: :mod:`dict` | :mod:`ElementTree` | :mod:`csv.reader`
-    '''
-    x = __patch1(extqc, auth, project, fmt, "neuroinfo:extendedboldqc")
-    if x:
-        return x
-    path = "/data/experiments"
-    params = {
-        "xsiType": "neuroinfo:extendedboldqc",
-        "columns": ','.join(extendedboldqc.columns.keys())
-    }
-    if project:
-        params["project"] = project
-    if accession:
-        params["xnat:mrSessionData/ID"] = accession
-    _,result = get(auth, path, fmt, autobox=autobox, params=params)
-    return result
-extqc = extendedboldqc
 extendedboldqc.columns = {
     "xnat:mrsessiondata/id": "session_id",
     "xnat:mrsessiondata/label": "session_label",
@@ -791,9 +727,9 @@ extendedboldqc.columns = {
     "neuroinfo:extendedboldqc/scan/rot_abs_z_max": "rot_abs_z_max"
 }
 
-def get(auth, path, fmt, autobox=True, params=None):
+def _get(auth, path, fmt, autobox=True, params=None):
     '''
-    Issue a GET request to the XNAT REST API and autobox the response content.
+    Issue a GET request to the XNAT REST API and box the response content.
     
     Example:
         >>> import yaxil
@@ -807,10 +743,10 @@ def get(auth, path, fmt, autobox=True, params=None):
     :type path: str
     :param fmt: API result format
     :type fmt: :mod:`yaxil.Format`
-    :param params: Additional query parameters
-    :type params: dict
     :param autobox: Autobox response content into an appropriate reader or other data structure
     :type autobox: bool
+    :param params: Additional query parameters
+    :type params: dict
     :returns: Tuple of (URL, :mod:`dict` | :mod:`xml.etree.ElementTree` | :mod:`csv.reader` | :mod:`str`)
     :rtype: tuple
     '''
@@ -832,13 +768,13 @@ def get(auth, path, fmt, autobox=True, params=None):
 
 def _autobox(content, format):
     '''
-    Autobox response content
+    Autobox response content.
 
     :param content: Response content
     :type content: str
-    :returns: Autoboxed content
     :param format: Format to return
     :type format: `yaxil.Format`
+    :returns: Autoboxed content
     :rtype: dict|xml.etree.ElementTree.Element|csvreader
     '''
     if format == Format.JSON:
@@ -866,7 +802,7 @@ def _autobox(content, format):
 
 def has(auth, xsitype, project=None):
     '''
-    Test if a Project contains any items of a particular xsi:type
+    Test if a project contains any items of a particular xsi:type.
 
     Example:
         >>> import yaxil
@@ -889,7 +825,7 @@ def has(auth, xsitype, project=None):
     }
     if project:
         params["project"] = project
-    url,result = get(auth, path, Format.JSON, autobox=True, params=params)
+    url,result = _get(auth, path, Format.JSON, autobox=True, params=params)
     try:
         __validate(result)
     except ResultSetError as e:
@@ -897,13 +833,4 @@ def has(auth, xsitype, project=None):
     if int(result["ResultSet"]["totalRecords"]) == 0:
         return False
     return True
-
-def __patch1(f, auth, project, fmt, xsitype):
-    '''
-    XNAT REST API patch #1
-    '''
-    if not has(auth, xsitype, project):
-        if fmt == Format.CSV:
-            return _autobox(','.join(f.columns.keys()), fmt)
-    return None
 
