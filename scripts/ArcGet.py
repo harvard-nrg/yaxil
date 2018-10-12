@@ -12,8 +12,11 @@ logger = logging.getLogger(__file__)
 
 def main():
     parser = argparse.ArgumentParser('Huzzah! Another XNAT downloader script.')
-    parser.add_argument('-a', '--alias', required=True, 
-        help='XNAT alias')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('-a', '--alias',
+        help='XNAT alias within ~/.xnat_auth')
+    group.add_argument('-host',
+        help='XNAT url within ~/.xnat_auth')
     parser.add_argument('-l', '--label', required=True, 
         help='XNAT Session Label')
     parser.add_argument('-p', '--project', 
@@ -40,11 +43,15 @@ def main():
         logging.basicConfig(level=logging.INFO)
 
     args.output_dir = os.path.expanduser(args.output_dir)
+    args.output_dir = os.path.join(args.output_dir, args.label, 'RAW')
 
     if args.insecure:
         yaxil.CHECK_CERTIFICATE = False
 
-    auth = yaxil.auth(args.alias)
+    if args.alias:
+        auth = yaxil.auth(args.alias)
+    elif args.host:
+        auth = yaxil.auth(url=args.host)
 
     with yaxil.session(auth) as sess:
         scan_ids = set(args.scans)
@@ -57,7 +64,7 @@ def main():
             scan_ids.update(resolve(sess, args.label, args.project, 
                                     targets=args.tasks, key='note'))
         # download
-        logger.info('downloading scans %s', list(scan_ids))
+        logger.info('downloading scans: %s', ','.join(scan_ids))
         if not args.dry_run:
             sess.download(args.label, scan_ids, project=args.project,
                           out_dir=args.output_dir, progress=1024**2,

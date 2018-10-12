@@ -77,8 +77,7 @@ def session(auth):
     sess = Session(auth)
     yield sess
 
-@functools.lru_cache
-def auth(alias, cfg="~/.xnat_auth"):
+def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     '''
     Read connection details from an xnat_auth XML file
 
@@ -90,24 +89,32 @@ def auth(alias, cfg="~/.xnat_auth"):
 
     :param alias: XNAT alias
     :type alias: str
+    :param url: XNAT URL
+    :type url: str
     :param cfg: Configuration file
     :type cfg: str
     :returns: Named tuple of (url, username, password)
     :rtype: :mod:`yaxil.XnatAuth`
     '''
+    if not alias and not url:
+        raise ValueError('you must provide an alias or url argument')
+    if alias and url:
+        raise ValueError('cannot provide both alias and url arguments')
     # check and parse config file
     cfg = os.path.expanduser(cfg)
     if not os.path.exists(cfg):
         raise AuthError("could not locate auth file %s" % cfg)
     tree = etree.parse(os.path.expanduser(cfg))
-    # get alias
-    if not alias:
-        raise AuthError("alias cannot be empty")
-    res = tree.findall("./%s" % alias.lower())
+    # search by alias or url
+    res = None
+    if alias:
+        res = tree.findall("./%s" % alias)
+    if url:
+        res = tree.findall("./*/[url='%s']" % url)
     if not res:
-        raise AuthError("could not find alias %s in %s" % (alias, cfg))
+        raise AuthError("failed to locate xnat credentials within %s" % cfg)
     elif len(res) > 1:
-        raise AuthError("too many %s's found in %s" % (alias, cfg))
+        raise AuthError("found too many sets of credentials within %s" % cfg)
     res = res.pop()
     # get url
     url = res.findall("url")
