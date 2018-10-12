@@ -17,19 +17,19 @@ def main():
         help='XNAT alias within ~/.xnat_auth')
     group.add_argument('-host',
         help='XNAT url within ~/.xnat_auth')
-    parser.add_argument('-l', '--label', required=True, 
+    parser.add_argument('-l', '--label', '-s', '--session', required=True,
         help='XNAT Session Label')
-    parser.add_argument('-p', '--project', 
+    parser.add_argument('-p', '--project',
         help='XNAT Session Project')
-    parser.add_argument('-s', '--scans', nargs='+', 
+    parser.add_argument('-r', '--scans', nargs='+',
         help='Raw scans numbers')
-    parser.add_argument('-t', '--types', nargs='+', 
+    parser.add_argument('-t', '--types', nargs='+',
         help='Scans types')
-    parser.add_argument('-k', '--tasks', nargs='+', 
+    parser.add_argument('-k', '--tasks', nargs='+',
         help='Scans tasks(notes)')
-    parser.add_argument('--insecure', action='store_true', 
+    parser.add_argument('--insecure', action='store_true',
         help='Turn off SSL certificate checking (needed for tunneled connections)')
-    parser.add_argument('-o', '--output-dir', default='.', 
+    parser.add_argument('-o', '--output-dir', default='.',
         help='Output directory')
     parser.add_argument('--dry-run', action='store_true',
         help='Print scants that would be downloaded, but do not download')
