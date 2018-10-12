@@ -65,9 +65,9 @@ def session(auth):
         auth = yaxil.XnatAuth(url='...', username='...', password='...')
 
         with yaxil.session(auth) as sess:
-            aid = sess.accession('AB123C')
-            experiment = sess.experiment(aid)
-            sess.download(aid, [1], out_dir='dicomz')
+            aid = sess.accession('AB1234C')
+            experiment = sess.experiment('AB1234C')
+            sess.download('AB1234C', [1,3,14], out_dir='./dicomz')
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
