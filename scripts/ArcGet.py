@@ -5,6 +5,7 @@ import re
 import sys
 import json
 import yaxil
+import string
 import logging
 import tarfile
 import argparse
@@ -85,25 +86,30 @@ def main():
                           attempts=3)
 
 def bids(sess, download, out_base, sourcedata=True):
+    # bids legal characters for sub, ses, task
+    legal = re.compile('[^a-zA-Z0-9]')
     # get session and subject labels
     item = next(iter(download.values()))
     session,subject = item['session_label'], item['subject_label']
     # bids and sourcedata base directories
     sdata_base = os.path.join(out_base, 'sourcedata',
-                              'sub-{0}'.format(subject),
-                              'ses-{0}'.format(session))
+                              'sub-{0}'.format(legal.sub('', subject)),
+                              'ses-{0}'.format(legal.sub('', session)))
     bids_base = os.path.join(out_base,
-                              'sub-{0}'.format(subject),
-                              'ses-{0}'.format(session))
+                              'sub-{0}'.format(legal.sub('', subject)),
+                              'ses-{0}'.format(legal.sub('', session)))
     # process each scan
     for scan_id,mdata in iter(download.items()):
         info = heuristic(mdata)
-        # file base
-        fbase = 'sub-{sub}_ses-{ses}_task-{task}_{subtype}'
-        fbase = fbase.format(sub=subject,
-                             ses=session,
-                             task=info['task'],
-                             subtype=info['sub_type'])
+        if info['data_type'] == 'func':
+            fbase = string.Template('sub-${sub}_ses-${ses}_task-${task}_${subtype}')
+        elif info['data_type'] == 'anat':
+            fbase = string.Template('sub-${sub}_ses-${ses}_run-${run}_${subtype}')
+        fbase = fbase.safe_substitute(sub=legal.sub('', subject),
+                                      ses=legal.sub('', session),
+                                      task=legal.sub('', info['task']),
+                                      subtype=legal.sub('', info['sub_type']),
+                                      run=info['run'])
         # download raw data
         sdata_dir = os.path.join(sdata_base, info['data_type'])
         if not os.path.exists(sdata_dir):
@@ -141,15 +147,16 @@ def heuristic(mdata):
     info = {
         'data_type': None,
         'sub_type': None,
+        'run': None,
         'task': note if note else 'unknown'
     }
     if scan_type == 'BOLD':
         info['data_type'] = 'func'
         info['sub_type']  = 'bold'
-    elif scan_type.startswith('MEMPRAGE') or \
-            note.startswith('ANAT'):
+    elif note.startswith('ANAT'):
         info['data_type'] = 'anat'
         info['sub_type']  = 'T1w'
+        info['run'] = int(re.match('ANAT_(\d+)', note).group(1))
     elif scan_type.startswith('BOLDFMAP'):
         info['data_type'] = 'fmap'
         info['sub_type']  = 'magnitude1'
