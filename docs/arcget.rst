@@ -5,13 +5,14 @@ ArcGet.py: yet another XNAT command line downloader
 
 -----------------------------------------
 
-The standard XNAT distribution provides a command line tool called ``ArcGet`` 
-to help you download your data from XNAT to your local hard drive. The YAXIL 
-version of ``ArcGet.py`` does the same thing, but with a few extra nuggets.
+The standard XNAT distribution provides a simple command line tool called 
+``ArcGet`` that helps you download your imaging data from XNAT to your local 
+hard drive. Not surprisingly, the YAXIL version of ``ArcGet.py`` does pretty 
+much the same thing, but with a few extra useful nuggets.
 
 Basic Usage
 -----------
-If you want to download all scans for a MR Session, use this
+If you want to download all scans for a MR Session, just use this
 
 .. code-block:: bash
 
@@ -31,7 +32,7 @@ argument
 
   ArcGet.py -a xnatastic -s LABEL -t MEMPRAGE BOLD --output-dir ./dicoms
 
-If you know the tasks that were coded into the XNAT scan notes field, use the 
+If you know the tasks that were coded into the scan notes field, use the 
 ``-k|--tasks`` argument
 
 .. code-block:: bash
@@ -48,18 +49,16 @@ directory. This is nice, but there is a new standard in town when it comes to
 organizing your neuroimaging data on disk called 
 `BIDS <http://bids.neuroimaging.io/>`_.
 
-The BIDS specification is long, but in short BIDS wants you to store your 
-functional scans in a ``func`` folder, your anatomical scans in an ``anat`` 
-folder, your field distortion maps in a ``fmap`` folder, and so on. BIDS also 
-wants you to convert your files to NIFTI format and name your files with 
-important pieces of information such as the ``subject``, ``session``, ``task``, 
-``run``, and so forth. You can read up on the full specification 
-`here <http://bids.neuroimaging.io/bids_spec.pdf>`_.
+To be brief, the BIDS specification wants you to store your functional scans in 
+a ``func`` folder, your anatomical scans in an ``anat`` folder, your field 
+distortion maps in a ``fmap`` folder, and so on. BIDS also wants you to convert 
+your files to NIFTI format and name your files with useful pieces of information 
+such as the ``subject``, ``session``, ``task``, ``run``, etc. You can read up on 
+the full specification `here <http://bids.neuroimaging.io/bids_spec.pdf>`_.
 
 The YAXIL version of ``ArcGet.py`` will help you download and save your data 
-into a proper BIDS structure in two ways. The first way is by supplying a very 
-simple, MR Session specific configuation file in fabulous YAML format. Here is 
-an example
+into a proper BIDS structure in two ways. The first way involves supplying a 
+simple YAML formatted configuation file. Here is an example
 
 .. code-block:: yaml
 
@@ -98,16 +97,17 @@ downloaded and converted to a proper BIDS structure
 Huzzah!
 
 ``ArcGet.py`` also supports a second way to output your data to a BIDS 
-structure that does not require any configuration file. ``ArcGet.py`` will use 
-a combination of XNAT metadata and additional information coded into the scan 
-``note`` field to make sense of your data. If you set your scan note field(s) 
-to ``ANAT_001``, ``REST_001``, ``REST_002``, ``FMAPM_001``, these strings will 
-be parsed and used to construct a proper BIDS structure
+structure that does not require a configuration file. By supplying the 
+``-b|--bids`` argument, ``ArcGet.py`` will use XNAT scan metadata and 
+additional information coded into the scan ``note`` field. If you set 
+your scan note field(s) to ``ANAT_001``, ``REST_001``, ``REST_002``, 
+``FMAPM_001``, etc. these strings will be parsed and used to construct 
+a proper BIDS structure
 
 .. code-block:: python
 
   ArcGet.py -a xnatastic -s LABEL -k ANAT_001 REST_001 REST_002 FMAPM_001 -b -o ./bids
 
-Internally, the ``-b|--bids`` argument will basically construct a configuration 
-file similar to the one described above using your XNAT database.
+Internally, the ``-b|--bids`` argument will construct a configuration 
+file similar to the one described above.
 
