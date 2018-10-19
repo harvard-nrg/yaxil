@@ -55,3 +55,13 @@ If you are looking for information on a specific function, read this
    :maxdepth: 2
 
    api
+
+ArcGet Guide
+------------
+
+If you're looking for information about ``ArcGet.py`` look no further
+
+.. toctree::
+   :maxdepth: 2
+
+   arcget
