@@ -70,6 +70,10 @@ def main():
     with yaxil.session(auth) as sess:
         # request all scan metadata for this mr session
         scans_meta = list(sess.scans(args.label, args.project))
+        # download all scans if no scans, types, or tasks were requested
+        scan_ids = [x['id'] for x in scans_meta if x['id']]
+        if not args.scans and not args.types and not args.tasks:
+            args.scans = scan_ids
         # read bids configuration file, or use command line arguments
         if args.config:
             with open(args.config, 'r') as fo:
@@ -86,17 +90,18 @@ def main():
             # resolve scans by notes
             if args.tasks:
                 download.update(find(scans_meta, targets=args.tasks, key='note'))
+            # quit if no scans were found to download
+            if not download:
+                logger.critical('no scans found to download')
+                sys.exit(1)
             # download data to a flat directory or output to a bids structure
             if args.bids:
-                try:
-                    config = generate_bids_config(download)
-                except ConfigGeneratorError as e:
-                    logger.critical(str(e))
-                    sys.exit(1)
+                config = generate_bids_config(download)
                 bids_from_config(sess, scans_meta, config, args.output_dir)
             else:
-                logger.info('downloading scans %s', ','.join(download.keys()))
-                sess.download(args.label, download.keys(), project=args.project,
+                scan_ids = sorted(download.keys(), key=int)
+                logger.info('downloading scans %s', ','.join(scan_ids))
+                sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
                               attempts=3)
 
@@ -107,7 +112,7 @@ def generate_bids_config(scans):
         note = scan_meta['note']
         match = regex.match(note)
         if not match:
-            raise ConfigGeneratorError('failed to parse note (%s) for scan %s', note, scan_id)
+            raise ConfigGeneratorError('failed to parse note ({0}) for scan {1}'.format(note, scan_id))
         task,run = match.groups('1')
         # this will certainly need to be extended over time
         if scan_meta['type'] == 'BOLD':
@@ -120,7 +125,7 @@ def generate_bids_config(scans):
             type_ = 'fmap'
             modality = 'magnitude1'
         else:
-            raise ConfigGeneratorError('could not determine type or modality for scan %s', scan_id)
+            raise ConfigGeneratorError('could not determine type or modality for scan {0}'.format(scan_id))
         config[type_][modality].append({
             'scan': scan_id,
             'task': task,

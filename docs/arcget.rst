@@ -17,26 +17,26 @@ If you want to download all scans for a MR Session, use this
 
   ArcGet.py -a xnatastic -s LABEL -o ./dicoms
 
-If you know the scan numbers that you want to download, use the ``--scans`` 
+If you know the scan numbers that you want to download, use the ``-r|--scans`` 
 argument
 
 .. code-block:: bash
 
   ArcGet.py -a xnatastic -s LABEL -r 1 2 3 -o ./dicoms
 
-If you know the scan types that you want to download, use the ``--types`` 
+If you know the scan types that you want to download, use the ``-t|--types`` 
 argument
 
 .. code-block:: bash
 
-  ArcGet.py -a xnatastic -s LABEL --types MEMPRAGE BOLD --output-dir ./dicoms
+  ArcGet.py -a xnatastic -s LABEL -t MEMPRAGE BOLD --output-dir ./dicoms
 
 If you know the tasks that were coded into the XNAT scan notes field, use the 
-``--tasks`` argument
+``-k|--tasks`` argument
 
 .. code-block:: bash
 
-  ArcGet.py -a xnatastic -s LABEL -t ANAT1 REST1 -o ./dicoms
+  ArcGet.py -a xnatastic -s LABEL -k ANAT1 REST1 -o ./dicoms
 
 This functionality should more or less cover what you already know and love from 
 classic ``ArcGet``.
