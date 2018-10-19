@@ -106,7 +106,7 @@ be parsed and used to construct a proper BIDS structure
 
 .. code-block:: python
 
-  ArcGet.py -a xnatastic -s LABEL -t ANAT_001 REST_001 REST_002 FMAPM_001 -b -o ./bids
+  ArcGet.py -a xnatastic -s LABEL -k ANAT_001 REST_001 REST_002 FMAPM_001 -b -o ./bids
 
 Internally, the ``-b|--bids`` argument will basically construct a configuration 
 file similar to the one described above using your XNAT database.
