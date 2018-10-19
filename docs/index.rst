@@ -43,8 +43,8 @@ Or you can avoid explicitly passing ``auth`` to every function by using a
     sess.download('MR_SESSION_LABEL', scans['anat'], out_dir='./dicomz')
 
 Huzzah! There are many more functions for accessing your scan metadata, 
-experiment metadata, subject metadata, and every documented function contains 
-examples.
+experiment metadata, subject metadata, and more. Every documented function 
+contains a example usage.
 
 The API Documentation / Guide
 -----------------------------
@@ -56,8 +56,8 @@ If you are looking for information on a specific function, read this
 
    api
 
-ArcGet Guide
-------------
+ArcGet.py Guide
+---------------
 
 If you're looking for information about ``ArcGet.py`` look no further
 

@@ -1,7 +1,7 @@
 .. _arcget
 
-ArcGet: yet another XNAT command line downloader
-================================================
+ArcGet.py: yet another XNAT command line downloader
+===================================================
 
 -----------------------------------------
 
