@@ -123,7 +123,7 @@ def generate_bids_config(scans):
             modality = 'T1w'
         elif scan_meta['note'].startswith('FMAPM'):
             type_ = 'fmap'
-            modality = 'magnitude1'
+            modality = 'magnitude'
         elif scan_meta['note'].startswith('FMAPP'):
             type_ = 'fmap'
             modality = 'phasediff'
@@ -177,7 +177,35 @@ def bids_from_config(sess, scans_metadata, config, out_base):
         # convert to nifti1-gz
         fname = '{0}.nii.gz'.format(fbase)
         fullfile = os.path.join(bids_base, scan['type'], fname)
+        logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
+        # rename field map images to proper BIDS names
+        if scan['type'] == 'fmap':
+            if scan.get('modality', None) == 'magnitude':
+                shim_fmapm(bids_base, fbase)
+            elif scan.get('modality', None) == 'phasediff':
+                shim_fmapp(bids_base, fbase)
+
+def shim_fmapm(bids_base, basename):
+    for ext in ['nii.gz', 'json']:
+        for echo in [1, 2]:
+            fname = '{0}_e{1}.{2}'.format(basename, echo, ext)
+            src = os.path.join(bids_base, 'fmap', fname)
+            if os.path.exists(src):
+                dst = src.replace('magnitude_e{0}'.format(echo),
+                                  'magnitude{0}'.format(echo))
+                logger.debug('renaming %s to %s', src, dst)
+                os.rename(src, dst)
+
+def shim_fmapp(bids_base, basename):
+    for ext in ['nii.gz', 'json']:
+        fname = '{0}_e2_ph.{1}'.format(basename, ext)
+        src = os.path.join(bids_base, 'fmap', fname)
+        if os.path.exists(src):
+            dst = src.replace('phasediff_e2_ph',
+                              'phasediff')
+            logger.debug('renaming %s to %s', src, dst)
+            os.rename(src, dst)
 
 def iterconfig(config):
     for type_,modalities in iter(config.items()):
@@ -203,7 +231,7 @@ def convert(input, output):
         '-o', dirname,
         input
     ]
-    logger.info(cmd)
+    logger.debug(cmd)
     sp.check_output(cmd)
 
 def find(scans_mdata, targets, key):
