@@ -116,7 +116,9 @@ how BIDS data types and modalities are determined from scan types and
 note fields in XNAT
 
 ==== ======== =========== =============== =========== ==========
-type note     BIDS (type) BIDS (modality) BIDS (task) BIDS (run)
+XNAT          BIDS
+------------- --------------------------------------------------
+type note     type        modality        task        run
 ==== ======== =========== =============== =========== ==========
 -    ANAT_001 anat        T1w             -           1
 BOLD REST_001 func        bold            REST        1
