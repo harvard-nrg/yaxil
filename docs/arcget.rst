@@ -80,6 +80,9 @@ simple YAML formatted configuation file. Here is an example
     magnitude1:
       - scan: 33
         run: 1
+    phasediff:
+      - scan 34
+        run: 1
   anat:
     T1w:
       - scan: 10
@@ -92,22 +95,33 @@ downloaded and converted to a proper BIDS structure
 
 .. code-block:: python
 
-  ArcGet.py -a xnatastic -s LABEL -c bids_me.yaml -o ./bids
+  ArcGet.py -a xnatastic -s LABEL -c bids.yaml -o ./bids
 
 Huzzah!
 
 ``ArcGet.py`` also supports a second way to output your data to a BIDS 
 structure that does not require a configuration file. By supplying the 
 ``-b|--bids`` argument, ``ArcGet.py`` will use XNAT scan metadata and 
-additional information coded into the scan ``note`` field. If you set 
-your scan note field(s) to ``ANAT_001``, ``REST_001``, ``REST_002``, 
-``FMAPM_001``, etc. these strings will be parsed and used to construct 
-a proper BIDS structure
+additional information coded into the scan ``note`` field. If you set your scan 
+note field(s) to ``ANAT_001``, ``REST_001``, ``FMAPM``, etc. these strings will 
+be parsed and used to construct a proper BIDS structure
 
 .. code-block:: python
 
-  ArcGet.py -a xnatastic -s LABEL -k ANAT_001 REST_001 REST_002 FMAPM_001 -b -o ./bids
+  ArcGet.py -a xnatastic -s LABEL -k ANAT_001 REST_001 FMAPM -b -o ./bids
 
 Internally, the ``-b|--bids`` argument will construct a configuration 
-file similar to the one described above.
+file similar to the one described above. The following table describes 
+how BIDS data types and modalities are determined from scan types and 
+note fields in XNAT
+
+==== ======== =========== =============== =========== ==========
+type note     BIDS (type) BIDS (modality) BIDS (task) BIDS (run)
+==== ======== =========== =============== =========== ==========
+-    ANAT_001 anat        T1w             -           1
+BOLD REST_001 func        bold            REST        1
+BOLD REST2    func        bold            REST        2
+-    FMAPM    fmap        magnitude1      -           1
+-    FMAPP    fmap        phasediff       -           1
+==== ======== =========== =============== =========== ==========
 

@@ -124,6 +124,9 @@ def generate_bids_config(scans):
         elif scan_meta['note'].startswith('FMAPM'):
             type_ = 'fmap'
             modality = 'magnitude1'
+        elif scan_meta['note'].startswith('FMAPP'):
+            type_ = 'fmap'
+            modality = 'phasediff'
         else:
             raise ConfigGeneratorError('could not determine type or modality for scan {0}'.format(scan_id))
         config[type_][modality].append({
