@@ -11,8 +11,8 @@ Functions
 ---------
 .. autofunction:: auth
 .. autofunction:: session
-.. autofunction:: subject
-.. autofunction:: experiment
+.. autofunction:: subjects
+.. autofunction:: experiments
 .. autofunction:: accession
 .. autofunction:: extendedboldqc
 .. autofunction:: scans
