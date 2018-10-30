@@ -13,38 +13,31 @@ far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. This
 documentation covers all of the functions and classes in YAXIL and examples 
 to help you get going.
 
-Here's an example of YAXIL in action
+Here is an example of YAXIL in action
 
 .. code-block:: python
 
+  import os
   import yaxil
-  
-  auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
-  query = {
-      'anat': 'note == "ANAT1"'
-  }
-  scans = yaxil.scansearch(auth, 'MR_SESSION_LABEL', query)
-  yaxil.download(auth, 'MR_SESSION_LABEL', scans['anat'], out_dir='./dicomz')
 
-Or you can avoid explicitly passing ``auth`` to every function by using a 
-``session`` context
-
-.. code-block:: python
-
-  import yaxil
-  
   auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
 
   with yaxil.session(auth) as sess:
-    query = {
-        'anat': 'note == "ANAT1"'
-    }
-    scans = sess.scansearch('MR_SESSION_LABEL', query)
-    sess.download('MR_SESSION_LABEL', scans['anat'], out_dir='./dicomz')
+    # get all subjects for given subject label and project
+    for subject in sess.subjects(label='LABEL', project='PROJECT'):
+      # get all MRIs for the given subject
+      for experiment in sess.experiments(subject=subject):
+        # get all scans for the given experiment
+        for scan in sess.scans(experiment=experiment):
+          # download scans with note 'REST1', 'REST2', or 'ANAT1'
+          if scan['note'] in ('REST1', 'REST2', 'ANAT1'):
+            sid = scan['id']
+            outdir = os.path.join(subject.label, experiment.label, sid)
+            sess.download(experiment.label, [sid], out_dir=outdir)
 
 Huzzah! There are many more functions for accessing your scan metadata, 
-experiment metadata, subject metadata, and more. Every documented function 
-contains a example usage.
+experiment metadata, subject metadata, and more. Head over to the API 
+documentation for more examples.
 
 The API Documentation / Guide
 -----------------------------

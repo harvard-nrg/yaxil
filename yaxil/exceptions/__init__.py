@@ -7,7 +7,13 @@ class AuthError(YaxilError):
 class MultipleAccessionError(YaxilError):
     pass
 
-class NullAccessionError(YaxilError):
+class NoAccessionError(YaxilError):
+    pass
+
+class NoExperimentsError(YaxilError):
+    pass
+
+class NoSubjectsError(YaxilError):
     pass
 
 class AccessionError(YaxilError):

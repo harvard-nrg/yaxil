@@ -7,11 +7,11 @@ class Session(object):
     def accession(self, *args, **kwargs):
         return yaxil.accession(self._auth, *args, **kwargs)
 
-    def subject(self, *args, **kwargs):
-        return yaxil.subject(self._auth, *args, **kwargs)
+    def subjects(self, *args, **kwargs):
+        return yaxil.subjects(self._auth, *args, **kwargs)
 
-    def experiment(self, *args, **kwargs):
-        return yaxil.experiment(self._auth, *args, **kwargs)
+    def experiments(self, *args, **kwargs):
+        return yaxil.experiments(self._auth, *args, **kwargs)
 
     def extendedboldqc(self, *args, **kwargs):
         return yaxil.extendedboldqc(self._auth, *args, **kwargs)

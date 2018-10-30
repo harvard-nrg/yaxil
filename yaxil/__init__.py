@@ -20,10 +20,10 @@ import xml.etree.ElementTree as etree
 import yaxil.commons as commons
 import yaxil.functools as functools
 from .session import Session
-from .exceptions import (AuthError, MultipleAccessionError,  NullAccessionError,
+from .exceptions import (AuthError, MultipleAccessionError,  NoAccessionError,
                          AccessionError, DownloadError, ResultSetError,
                          ScanSearchError, EQCNotFoundError, RestApiError,
-                         AutoboxError)
+                         AutoboxError, NoExperimentsError, NoSubjectsError)
 
 # Whether to verify SSL certificates. Primarily of use during testing.
 CHECK_CERTIFICATE = True
@@ -137,30 +137,27 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     return XnatAuth(url=url.pop().text, username=username.pop().text, 
                         password=password.pop().text)
 
-Subject = col.namedtuple("Subject", [
-    "uri",
-    "label",
-    "id",
-    "project",
-    "experiments"
+Subject = col.namedtuple('Subject', [
+    'uri',
+    'label',
+    'id',
+    'project'
 ])
 '''
 Container to hold XNAT Subject information. Fields include the Subject URI 
-(``uri``), Accession ID (``id``), Project (``project``), Label (``label``), 
-and Experiments (``experiments``).
+(``uri``), Accession ID (``id``), Project (``project``), and Label (``label``).
 '''
 
-def subject(auth, label, project=None):
+def subjects(auth, label=None, project=None):
     '''
-    Retrieve a Subject tuple that contains the URI, accession ID, label, 
-    project, and all experiment IDs for the given subject label.
+    Retrieve Subject tuples for subjects returned by this function.
     
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.subject(auth, 'AB1234C')
+        >>> yaxil.subjects(auth, 'AB1234C')
         Subject(uri=u'/data/experiments/XNAT_S0001', label=u'AB1234C', id=u'XNAT_S0001', 
-            project=u'MyProject', experiments=[u'XNAT_E0001', u'XNAT_E0002'])
+            project=u'MyProject')
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -168,56 +165,53 @@ def subject(auth, label, project=None):
     :type label: str
     :param project: XNAT Subject Project
     :type project: str
-    :returns: Subject object
+    :returns: Subject objects
     :rtype: :mod:`yaxil.Subject`
     '''
-    if not label:
-        raise AccessionError("label cannot be empty")
-    url = "%s/data/subjects" % auth.url.rstrip('/')
-    logger.debug("issuing http request %s", url)
+    url = '{0}/data/subjects'.format(auth.url.rstrip('/'))
+    logger.debug('issuing http request %s', url)
+    # compile query string
+    columns = [
+        'ID',
+        'label',
+        'project'
+    ]
     payload = {
-        "label": label,
-        "columns": "ID,label,project,xnat:mrsessiondata/id,xnat:mrsessiondata/label"
+        'columns': ','.join(columns)
     }
+    if label:
+        payload['label'] = label
     if project:
-        payload["project"] = project
+        payload['project'] = project
+    # submit the request
     r = requests.get(url, params=payload, auth=(auth.username, auth.password), 
                      verify=CHECK_CERTIFICATE)
+    # validate response
     if r.status_code != requests.codes.ok:
-        raise AccessionError("response not ok (%s) from %s" % (r.status_code, r.url))
+        raise AccessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
     try:
         results = r.json()
-        __validate(results)
+        __quick_validate(results)
     except ResultSetError as e:
-        raise ResultSetError("%s in response from %s", (e.message, r.url))
-    results = results["ResultSet"]
-    if int(results["totalRecords"]) == 0:
-        raise NullAccessionError("no accession id returned for %s" % label)
-    projects = set()
-    ids = set()
-    experiments = []
-    for item in results["Result"]:
-        projects.add(item["project"])
-        ids.add(item["ID"])
-        label = item["label"]
-        uri = item["URI"]
-        if item["xnat:mrsessiondata/id"]:
-            experiments.append((item["xnat:mrsessiondata/id"], item["xnat:mrsessiondata/label"]))
-    if len(projects) > 1:
-        raise MultipleAccessionError("too many projects returned for label %s" % label)
-    if len(ids) > 1:
-        raise MultipleAccessionError("too many ids returned for label %s" % label)
-    return Subject(uri=uri, id=ids.pop(), project=projects.pop(),
-                   label=label, experiments=experiments)
+        raise ResultSetError('{0} from {1}'.format(e.message, r.url))
+    results = results['ResultSet']
+    if int(results['totalRecords']) == 0:
+        raise NoSubjectsError('no records returned from {0}'.format(r.url))
+    # start generating consumable results for the caller
+    for item in results['Result']:
+        yield Subject(uri=item['URI'],
+                      id=item['ID'],
+                      project=item['project'],
+                      label=item['label'])
 
-Experiment = col.namedtuple("Experiment", [
-    "uri",
-    "label",
-    "id",
-    "project",
-    "subject_id",
-    "subject_label",
-    "archived_date"
+Experiment = col.namedtuple('Experiment', [
+    'uri',
+    'label',
+    'id',
+    'project',
+    'subject_id',
+    'subject_label',
+    'archived_date'
 ])
 '''
 Container to hold XNAT Experiment information. Fields include the Experiment URI 
@@ -226,10 +220,9 @@ Subject Accession ID (``subject_id``), Subject label (``subject_label``), and
 archived date (``archived_date``).
 '''
 
-def experiment(auth, label, project=None):
+def experiments(auth, label=None, project=None, subject=None):
     '''
-    Retrieve an Experiment tuple containing the accession ID, subject ID, project,
-    and other relevant fields for any experiment.
+    Retrieve Experiment tuples for experiments returned by this function.
     
     Example:
         >>> import yaxil
@@ -244,49 +237,56 @@ def experiment(auth, label, project=None):
     :type label: str
     :param project: XNAT Experiment Project
     :type project: str
+    :param subject: YAXIL Subject
+    :type subject: :mod:`yaxil.Subject`
     :returns: Experiment object
     :rtype: :mod:`yaxil.Experiment`
     '''
-    if not label:
-        raise AccessionError("label cannot be empty")
-    url = "%s/data/experiments" % auth.url.rstrip('/')
-    logger.debug("issuing http request %s", url)
+    if subject and (label or project):
+        raise ValueError('cannot provide subject with label or project')
+    url = '{0}/data/experiments'.format(auth.url.rstrip('/'))
+    logger.debug('issuing http request %s', url)
+    # compile query string
     columns = [
-        "ID",
-        "label",
-        "project",
-        "xnat:subjectassessordata/subject_id",
-        "subject_label",
-        "insert_date"
+        'ID',
+        'label',
+        'project',
+        'xnat:subjectassessordata/subject_id',
+        'subject_label',
+        'insert_date'
     ]
     payload = {
-        "label": label, 
-        "columns": ",".join(columns)
+        'columns': ','.join(columns)
     }
+    if label:
+        payload['label'] = label
     if project:
-        payload["project"] = project
+        payload['project'] = project
+    if subject:
+        payload['project'] = subject.project
+        payload['xnat:subjectassessordata/subject_id'] = subject.id
+    # submit request
     r = requests.get(url, params=payload, auth=(auth.username, auth.password), 
                      verify=CHECK_CERTIFICATE)
+    # validate response
     if r.status_code != requests.codes.ok:
-        raise AccessionError("response not ok (%s) from %s" % (r.status_code, r.url))
+        raise AccessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
     try:
         results = r.json()
-        __validate(results)
+        __quick_validate(results)
     except ResultSetError as e:
-        raise ResultSetError("%s in response from %s", (e.message, r.url))
-    results = results["ResultSet"]
-    if int(results["totalRecords"]) == 0:
-        raise NullAccessionError("no accession id returned for label %s" % label)
-    elif int(results["totalRecords"]) > 1:
-        raise MultipleAccessionError("too many accession ids returned " + \
-            "for label %s" % label)
-    if "ID" not in results["Result"][0]:
-        raise AccessionError("id not in result from %s" % r.url)
-    r = results["Result"][0]
-    return Experiment(uri=r["URI"], id=r["ID"], project=r["project"],
-                      label=r["label"], subject_id=r["subject_ID"], 
-                      subject_label=r["subject_label"], 
-                      archived_date=r["insert_date"])
+        raise ResultSetError('{0} from {1}'.format(e.message, r.url))
+    results = results['ResultSet']
+    if int(results['totalRecords']) == 0:
+        raise NoExperimentsError('no records returned for {0}'.format(r.url))
+    for item in results['Result']:
+        yield Experiment(uri=item['URI'], 
+                         id=item['ID'], 
+                         project=item['project'], 
+                         label=item['label'], 
+                         subject_id=item['subject_ID'], 
+                         subject_label=item['subject_label'], 
+                         archived_date=item['insert_date'])
 
 @functools.lru_cache
 def accession(auth, label, project=None):
@@ -308,7 +308,7 @@ def accession(auth, label, project=None):
     :returns: Accession ID
     :rtype: str
     '''
-    return experiment(auth, label, project).id
+    return list(experiments(auth, label, project))[0].id
 
 DownloadOpts = col.namedtuple("DownloadOpts", [
     "in_mem",
@@ -463,9 +463,9 @@ def extract(zf, content, out_dir='.'):
         with open(f, "wb") as fo:
             fo.write(bio.read())
 
-def __validate(r, check=("ResultSet", "Result", "totalRecords")):
+def __quick_validate(r, check=('ResultSet', 'Result', 'totalRecords')):
     '''
-    Validate a XNAT returned JSON result set.
+    Quick validation of JSON result set returned by XNAT.
 
     :param r: Result set data in JSON format
     :type r: dict
@@ -474,12 +474,12 @@ def __validate(r, check=("ResultSet", "Result", "totalRecords")):
     :returns: Result set is valid
     :rtype: bool
     '''
-    if "ResultSet" in check and "ResultSet" not in r:
-        raise ResultSetError("no 'ResultSet'")
-    if "Result" in check and "Result" not in r["ResultSet"]:
-        raise ResultSetError("no 'Result' in 'ResultSet'")
-    if "totalRecords" in check and "totalRecords" not in r["ResultSet"]:
-        raise ResultSetError("no 'totalRecords' in 'ResultSet'")
+    if 'ResultSet' in check and 'ResultSet' not in r:
+        raise ResultSetError('no ResultSet in server response')
+    if 'Result' in check and 'Result' not in r['ResultSet']:
+        raise ResultSetError('no Result in server response')
+    if 'totalRecords' in check and 'totalRecords' not in r['ResultSet']:
+        raise ResultSetError('no totalRecords in server response')
     return True
 
 def scansearch(auth, label, filt, project=None, aid=None):
@@ -542,9 +542,9 @@ def scansearch(auth, label, filt, project=None, aid=None):
             raise
     return result
 
-def scans(auth, label, scan_ids=None, project=None, aid=None):
+def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
     '''
-    Get scan information as a sequence of dictionaries.
+    Get scan information for a MR Session as a sequence of dictionaries.
 
     Example:
         >>> import yaxil
@@ -561,13 +561,16 @@ def scans(auth, label, scan_ids=None, project=None, aid=None):
     :type scan_ids: list
     :param project: XNAT MR Session project
     :type project: str
-    :param aid: XNAT Accession ID
-    :type aid: str
+    :param experiment: YAXIL Experiment
+    :type experiment: :mod:`yaxil.Experiment`
     :returns: Generator of scan data dictionaries
     :rtype: dict
     '''
-    if not aid:
-        aid = accession(auth, label, project)
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
     path = '/data/experiments'
     params = {
         'xsiType': 'xnat:mrSessionData',
@@ -834,7 +837,7 @@ def has(auth, xsitype, project=None):
         params["project"] = project
     url,result = _get(auth, path, Format.JSON, autobox=True, params=params)
     try:
-        __validate(result)
+        __quick_validate(result)
     except ResultSetError as e:
         raise ResultSetError("%s in response from %s" % (e.message, url))
     if int(result["ResultSet"]["totalRecords"]) == 0:
