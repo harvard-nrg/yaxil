@@ -616,7 +616,6 @@ scans.columns = {
     "xnat:mrscandata/parameters/te": "te",
     "xnat:mrscandata/parameters/flip": "flip",
     "xnat:mrscandata/parameters/sequence": "sequence",
-    "xnat:mrscandata/parameters/scantime": "time",
     "xnat:mrscandata/parameters/imagetype": "image_type",
     "xnat:mrscandata/parameters/scansequence": "scan_sequence",
     "xnat:mrscandata/parameters/seqvariant": "sequence_variant",
