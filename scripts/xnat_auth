@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+
+import os
+import io
+import sys
+import shutil
+import logging
+import getpass as gp
+import argparse as ap
+import tempfile as tf
+from lxml import etree
+
+_DEFAULT_ = '~/.xnat_auth'
+
+logger = logging.getLogger(__name__)
+
+def main():
+    parser = ap.ArgumentParser(description='XNAT auth file generator')
+    group = parser.add_argument_group('group')
+    group.add_argument('--alias', required=True, action=CheckEmpty,
+        help='XNAT alias e.g., "cbscentral"')
+    group.add_argument('--xnat-version', default='1.5', action=CheckEmpty,
+        help='XNAT alias e.g., "cbscentral"')
+    group.add_argument('--username', required=True, action=CheckEmpty,
+        help='XNAT username')
+    group.add_argument('--url', required=True, action=CheckEmpty,
+        help='XNAT URL e.g., "https://cbscentral.rc.fas.harvard.edu"')
+    parser.add_argument('--password',
+        help='XNAT password, omit to force password prompt (recommended)')
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args()
+
+    # configure logging
+    level = logging.INFO
+    if args.debug:
+        level = logging.DEBUG
+    logging.basicConfig(level=level)
+
+    # perhaps one day this will be an argument
+    args.auth_file = os.path.expanduser(_DEFAULT_)
+
+    # expand tilde in auth file
+    auth_file = os.path.expanduser(args.auth_file)
+
+    # parse existing auth file or begin a new <xnat /> XML element
+    if os.path.exists(auth_file):
+        try:
+            parser = etree.XMLParser(remove_blank_text=True)
+            root_el = etree.parse(auth_file, parser).getroot()
+        except etree.XMLSyntaxError as e:
+            logger.critical('%s contains invalid XML', args.auth_file)
+            raise e
+    else:
+        root_el = etree.Element('xnat')
+
+    # if password not specified on command line, prompt for one
+    if not args.password:
+        args.password = gp.getpass('XNAT password: ')
+
+    # remove any existing alias-named elements
+    alias_els = root_el.xpath('/xnat/' + args.alias)
+    for el in alias_els:
+        el.getparent().remove(el)
+
+    # create new alias element
+    alias_el = etree.Element(args.alias, version=args.xnat_version)
+    etree.SubElement(alias_el, 'url').text = args.url
+    etree.SubElement(alias_el, 'username').text = args.username
+    etree.SubElement(alias_el, 'password').text = args.password
+    root_el.append(alias_el)
+
+    # create temporary auth file
+    dirname = os.path.dirname(args.auth_file)
+
+    with tf.NamedTemporaryFile(dir=dirname, prefix='.xnat_auth', delete=False) as tmp:
+        tmp.write(etree.tostring(root_el, pretty_print=True))
+
+    # make sure permissions are restricted and rename over old file
+    os.chmod(tmp.name, 0o0600)
+    os.rename(tmp.name, auth_file)
+
+class CheckEmpty(ap.Action):
+    '''
+    Checks that argument is not an empty string
+    '''
+    def __call__(self, parser, namespace, value, option_string=None):
+        value = value.strip()
+        if not value:
+            parser.print_usage()
+            logger.critical('value for argument %s cannot be empty', option_string)
+            sys.exit(1)
+        else:
+            setattr(namespace, self.dest, value.strip())
+
+if __name__ == '__main__':
+    main()

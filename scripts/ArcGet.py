@@ -61,6 +61,12 @@ def main():
     elif args.host:
         auth = yaxil.auth(url=args.host)
 
+    # to maintain backwards compatibility, split -r, -c, or -k arguments
+    # that are comma-separated
+    args.scans = splitarg(args.scans)
+    args.types = splitarg(args.types)
+    args.tasks = splitarg(args.tasks)
+
     # this command line tool is needed for bids-ification
     if args.bids:
         dcm2niix = which('dcm2niix')
@@ -104,6 +110,17 @@ def main():
                 sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
                               attempts=3)
+def splitarg(args):
+    ''' loop over arguments and split any that are comma separated '''
+    if not args:
+        return args
+    split = list()
+    for arg in args:
+        if ',' in arg:
+            split.extend([x for x in arg.split(',') if x])
+        elif arg:
+            split.append(arg)
+    return split
 
 def generate_bids_config(scans):
     config = col.defaultdict(lambda: col.defaultdict(list))

@@ -6,7 +6,8 @@ here = os.path.abspath(os.path.dirname(__file__))
 requires = [
     'requests',
     'pydicom',
-    'pyaml'
+    'pyaml',
+    'lxml'
 ]
 
 test_requirements = [
@@ -27,7 +28,8 @@ setup(
     url=about['__url__'],
     packages=find_packages(),
     scripts=[
-        'scripts/ArcGet.py'
+        'scripts/ArcGet.py',
+        'scripts/xnat_auth'
     ],
     install_requires=requires,
     tests_require=test_requirements

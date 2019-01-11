@@ -8,7 +8,8 @@ pytest = "*"
 vcrpy = "*"
 
 [packages]
-pyaml = "*"
+pyaml = ">=4.2b1"
+lxml = "*"
 pydicom = "*"
 requests = {extras = ["security"]}
 yaxil = {path = ".", editable = true}
