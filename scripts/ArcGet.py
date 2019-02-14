@@ -40,8 +40,10 @@ def main():
         help='Turn off SSL certificate checking (needed for tunneled connections)')
     parser.add_argument('-o', '--output-dir', default='.',
         help='Output directory')
-    parser.add_argument('-b', '--bids', action='store_true',
-        help='BIDS output directory structure')
+    parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat'], default='1.4',
+        help='Output directory format')
+    parser.add_argument('--bids', action='store_true',
+        help='Output in BIDS format (same as --output-format=bids)')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     args = parser.parse_args()
@@ -51,7 +53,16 @@ def main():
     else:
         logging.basicConfig(level=logging.INFO)
 
+    # deprecation of --bids
+    if args.bids:
+        logger.warn('DEPRECATION use --output-format=bids instead of --bids')
+        args.output_format = 'bids'
+
     args.output_dir = os.path.expanduser(args.output_dir)
+
+    # append additional XNAT 1.4 directories to output directory
+    if args.output_format == '1.4':
+        args.output_dir = os.path.join(args.output_dir, args.label, 'RAW')
 
     if args.insecure:
         yaxil.CHECK_CERTIFICATE = False
@@ -68,7 +79,7 @@ def main():
     args.tasks = splitarg(args.tasks)
 
     # this command line tool is needed for bids-ification
-    if args.bids:
+    if args.output_format == 'bids':
         dcm2niix = which('dcm2niix')
         if not dcm2niix:
             raise Exception('could not find dcm2niix')
@@ -101,7 +112,7 @@ def main():
                 logger.critical('no scans found to download')
                 sys.exit(1)
             # download data to a flat directory or output to a bids structure
-            if args.bids:
+            if args.output_format == 'bids':
                 config = generate_bids_config(download)
                 bids_from_config(sess, scans_meta, config, args.output_dir)
             else:
@@ -110,6 +121,7 @@ def main():
                 sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
                               attempts=3)
+
 def splitarg(args):
     ''' loop over arguments and split any that are comma separated '''
     if not args:
