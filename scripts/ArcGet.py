@@ -38,7 +38,7 @@ def main():
         help='Scans tasks(notes)')
     parser.add_argument('--insecure', action='store_true',
         help='Turn off SSL certificate checking (needed for tunneled connections)')
-    parser.add_argument('-o', '--output-dir', default='.',
+    parser.add_argument('-o', '--output-dir', '--out-dir', default='.',
         help='Output directory')
     parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat'], default='1.4',
         help='Output directory format')
