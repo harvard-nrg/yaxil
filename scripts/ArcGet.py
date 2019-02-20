@@ -24,12 +24,18 @@ def main():
         help='XNAT alias within ~/.xnat_auth')
     group_a.add_argument('-host',
         help='XNAT url within ~/.xnat_auth')
-    parser.add_argument('-l', '--label', '-s', '--session', required=True,
+    group_b = parser.add_mutually_exclusive_group(required=True)
+    group_b.add_argument('-l', '--label',
         help='XNAT Session Label')
+    group_b.add_argument('-s', '--session',
+        help='Same as --label (deprecated)')
     parser.add_argument('-p', '--project',
         help='XNAT Session Project')
-    parser.add_argument('-r', '--scans', nargs='+',
+    group_c = parser.add_mutually_exclusive_group()
+    group_c.add_argument('--scans', nargs='+',
         help='Raw scans numbers')
+    group_c.add_argument('-r', '--raw-types', nargs='+', 
+        help='Same as --scans (deprecated)')
     parser.add_argument('-c', '--config',
         help='BIDS configuration')
     parser.add_argument('-t', '--types', nargs='+',
@@ -53,9 +59,19 @@ def main():
     else:
         logging.basicConfig(level=logging.INFO)
 
-    # deprecation of --bids
+    # --session deprecation warning
+    if args.session:
+        logger.warn('DEPRECATION WARNING: use -l|--label instead of -s|--session')
+        args.label = args.session
+
+    # --raw-types deprecation warning
+    if args.raw_types:
+        logger.warn('DEPRECATION WARNING: use --scans instead of -r|--raw-types')
+        args.scans = args.raw_types
+
+    # --bids deprecation warning
     if args.bids:
-        logger.warn('DEPRECATION use --output-format=bids instead of --bids')
+        logger.warn('DEPRECATION WARNING: use -o|--output-format bids instead of --bids')
         args.output_format = 'bids'
 
     args.output_dir = os.path.expanduser(args.output_dir)

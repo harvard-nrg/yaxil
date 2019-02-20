@@ -24,3 +24,9 @@ class Session(object):
 
     def scansearch(self, *args, **kwargs):
         return yaxil.scansearch(self._auth, *args, **kwargs)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        return
