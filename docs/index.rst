@@ -13,7 +13,7 @@ far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. This
 documentation covers all of the functions and classes in YAXIL and examples 
 to help you get going.
 
-Here is an example of YAXIL in action
+Here is a very basic example of YAXIL in action
 
 .. code-block:: python
 
@@ -23,8 +23,8 @@ Here is an example of YAXIL in action
   auth = yaxil.XnatAuth(url='https://xnatastic.org', username='you', password='*****')
 
   with yaxil.session(auth) as sess:
-    # get all subjects for given subject label and project
-    for subject in sess.subjects(label='LABEL', project='PROJECT'):
+    # get all subjects for given project
+    for subject in sess.subjects(project='PROJECT'):
       # get all MRIs for the given subject
       for experiment in sess.experiments(subject=subject):
         # get all scans for the given experiment
