@@ -42,8 +42,8 @@ If you know the tasks that were coded into the scan notes field, use the
 This functionality should more or less cover what you already know and love from 
 classic ``ArcGet``.
 
-BIDS compatibility
-------------------
+BIDS compatibility (beta)
+-------------------------
 By default ``ArcGet.py`` will download your data into a flat unstructured 
 directory. This is nice, but there is a new standard in town when it comes to 
 organizing your neuroimaging data on disk called 
@@ -81,7 +81,7 @@ simple YAML formatted configuation file. Here is an example
       - scan: 33
         run: 1
     phasediff:
-      - scan 34
+      - scan: 34
         run: 1
   anat:
     T1w:
