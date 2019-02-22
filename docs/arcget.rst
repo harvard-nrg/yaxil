@@ -44,6 +44,11 @@ classic ``ArcGet``.
 
 BIDS compatibility (beta)
 -------------------------
+Note that BIDS support is very new and very limited. It does not support the 
+entire BIDS specification. If you're interested in helping out, please 
+fork the project and submit a merge request through 
+`GitHub <https://github.com/harvard-nrg/yaxil>`_!
+
 By default ``ArcGet.py`` will download your data into a flat unstructured 
 directory. This is nice, but there is a new standard in town when it comes to 
 organizing your neuroimaging data on disk called 
