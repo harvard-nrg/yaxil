@@ -72,9 +72,11 @@ simple YAML formatted configuation file. Here is an example
       - scan: 12
         task: REST
         run: 1
+        id: rest_1
       - scan: 16
         task: REST
         run: 2
+        id: rest_2
       - scan: 28
         task: LANG
         run: 1
@@ -82,6 +84,12 @@ simple YAML formatted configuation file. Here is an example
         task: LANG
         run: 2
   fmap:
+    epi:
+      - scan: 24
+        run: 1
+        intended for:
+          - rest_1
+          - rest_2
     magnitude1:
       - scan: 33
         run: 1
@@ -93,7 +101,10 @@ simple YAML formatted configuation file. Here is an example
       - scan: 10
         run: 1
       - scan: 36
-        run: 2  
+        run: 2
+    T2w:
+      - scan: 12
+        run: 1
 
 When you pass this file to ``ArcGet.py``, you will end up with your data 
 downloaded and converted to a proper BIDS structure
