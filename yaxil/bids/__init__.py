@@ -50,13 +50,23 @@ def proc_func(config, args):
     refs = dict()
     for scan in iterconfig(config, 'func'):
         ref = scan.get('id', None)
-        templ = string.Template('sub-${sub}_ses-${ses}_task-${task}_run-${run}_${modality}')
+        templ = 'sub-${sub}_ses-${ses}_task-${task}'
+        if 'acquisition' in scan:
+            templ += '_acq-${acquisition}'
+        if 'run' in scan:
+            templ += '_run-${run}'
+        if 'direction' in scan:
+            templ += '_dir-${direction}'
+        templ += '_${modality}'
+        templ = string.Template(templ)
         fbase = templ.safe_substitute(
             sub=legal.sub('', args.subject),
             ses=legal.sub('', args.session),
+            task=scan.get('task', None),
+            acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
+            direction=scan.get('direction', None),
             modality=scan.get('modality', None),
-            task=scan.get('task', None)
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
@@ -80,12 +90,19 @@ def proc_anat(config, args):
     refs = dict()
     for scan in iterconfig(config, 'anat'):
         ref = scan.get('id', None)
-        templ = string.Template('sub-${sub}_ses-${ses}_run-${run}_${modality}')
+        templ = 'sub-${sub}_ses-${ses}'
+        if 'acquisition' in scan:
+            templ += '_acq-${acquisition}'
+        if 'run' in scan:
+            templ += '_run-${run}'
+        templ += '_${modality}'
+        templ = string.Template(templ)
         fbase = templ.safe_substitute(
             sub=legal.sub('', args.subject),
             ses=legal.sub('', args.session),
+            acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
-            modality=scan.get('modality', None)
+            modality=scan.get('modality', None),
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
@@ -106,12 +123,22 @@ def proc_fmap(config, args, func_refs=None):
     refs = dict()
     for scan in iterconfig(config, 'fmap'):
         ref = scan.get('id', None)
-        templ = string.Template('sub-${sub}_ses-${ses}_run-${run}_${modality}')
+        templ = 'sub-${sub}_ses-${ses}'
+        if 'acquisition' in scan:
+            templ += '_acq-${acquisition}'
+        if 'run' in scan:
+            templ += '_run-${run}'
+        if 'direction' in scan:
+            templ += '_dir-${direction}'
+        templ += '_${modality}'
+        templ = string.Template(templ)
         fbase = templ.safe_substitute(
             sub=legal.sub('', args.subject),
             ses=legal.sub('', args.session),
+            acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
-            modality=scan.get('modality', None)
+            direction=scan.get('direction', None),
+            modality=scan.get('modality', None),
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
@@ -129,9 +156,9 @@ def proc_fmap(config, args, func_refs=None):
         # rename fieldmap images to BIDS file naming convention
         if scan['type'] == 'fmap':
             if scan.get('modality', None) == 'magnitude':
-                rename_fmapm(bids_base, fbase)
-            elif scan.get('modality', None) == 'phasediff':
-                rename_fmapp(bids_base, fbase)
+                rename_fmapm(args.bids, fbase)
+            elif scan.get('modality', None) == 'phase':
+                rename_fmapp(args.bids, fbase)
         # get the json sidecar
         sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
         # insert intended-for into JSON sidecar
@@ -141,7 +168,12 @@ def proc_fmap(config, args, func_refs=None):
             for intended in scan['intended for']:
                 if intended in func_refs:
                     logger.info('adding IntendedFor %s to %s', func_refs[intended], sidecar_file)
-                    sidecarjs['IntendedFor'] = func_refs[intended]
+                    if 'IntendedFor' not in sidecarjs:
+                        sidecarjs['IntendedFor'] = list()
+                    sidecarjs['IntendedFor'].append(func_refs[intended])
+            # if there is only one IntendedFor entry, don't store in a list
+            if 'IntendedFor' in sidecarjs and len(sidecarjs['IntendedFor']) == 1:
+                sidecarjs['IntendedFor'] = sidecarjs['IntendedFor'].pop()
             logger.info('writing file %s', sidecar_file)
             commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
@@ -169,8 +201,10 @@ def rename_fmapm(bids_base, basename):
             fname = '{0}_e{1}.{2}'.format(basename, echo, ext)
             src = os.path.join(bids_base, 'fmap', fname)
             if os.path.exists(src):
-                dst = src.replace('magnitude_e{0}'.format(echo),
-                                  'magnitude{0}'.format(echo))
+                dst = src.replace(
+                    'magnitude_e{0}'.format(echo),
+                    'magnitude{0}'.format(echo)
+                )
                 logger.debug('renaming %s to %s', src, dst)
                 os.rename(src, dst)
                 files[ext] = dst
@@ -178,15 +212,17 @@ def rename_fmapm(bids_base, basename):
 
 def rename_fmapp(bids_base, basename):
     '''
-    Rename phasedifffieldmap file to BIDS specification
+    Rename phase fieldmap file to BIDS specification
     '''
     files = dict()
     for ext in ['nii.gz', 'json']:
         fname = '{0}_e2_ph.{1}'.format(basename, ext)
         src = os.path.join(bids_base, 'fmap', fname)
         if os.path.exists(src):
-            dst = src.replace('phasediff_e2_ph',
-                              'phasediff')
+            dst = src.replace(
+                'phase_e2_ph',
+                'phase'
+            )
             logger.debug('renaming %s to %s', src, dst)
             os.rename(src, dst)
             files[ext] = dst
@@ -204,6 +240,7 @@ def convert(input, output):
     dcm2niix = commons.which('dcm2niix')
     cmd = [
         'dcm2niix',
+        '-s', 'y',
         '-b', 'y',
         '-z', 'y',
         '-f', basename,

@@ -62,8 +62,8 @@ such as the ``subject``, ``session``, ``task``, ``run``, etc. You can read up on
 the full specification `here <http://bids.neuroimaging.io/bids_spec.pdf>`_.
 
 The YAXIL version of ``ArcGet.py`` will help you download and save your data 
-into a proper BIDS structure in two ways. The first way involves supplying a 
-simple YAML formatted configuation file. Here is an example
+into a proper BIDS structure in two ways. The most flexible way involves 
+supplying a simple YAML formatted configuation file. Here is an example
 
 .. code-block:: yaml
 
@@ -87,6 +87,7 @@ simple YAML formatted configuation file. Here is an example
     epi:
       - scan: 24
         run: 1
+        direction: LP
         intended for:
           - rest_1
           - rest_2
@@ -105,6 +106,12 @@ simple YAML formatted configuation file. Here is an example
     T2w:
       - scan: 12
         run: 1
+
+If you're familiar with the BIDS specification, the fields in the configuration 
+file above should be self-explanatory. The only part I'll explain is how to 
+define the fieldmap ``IntendedFor`` field. For any ``fmap`` scan, you can insert 
+an ``intended for`` field, followed by a list of references to any ``id`` fields 
+under any of the ``func`` scans.
 
 When you pass this file to ``ArcGet.py``, you will end up with your data 
 downloaded and converted to a proper BIDS structure
