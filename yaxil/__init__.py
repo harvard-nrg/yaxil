@@ -33,7 +33,7 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 class Format(object):
     '''
-    A container to hold possible XNAT response formats: Format.JSON, 
+    A container to hold possible XNAT response formats: Format.JSON,
     Format.XML, and Format.CSV.
     '''
     JSON  = "json"
@@ -46,14 +46,14 @@ XnatAuth = col.namedtuple("XnatAuth", [
     "password"
 ])
 '''
-Container to hold XNAT authentication information. Fields include the ``url``, 
+Container to hold XNAT authentication information. Fields include the ``url``,
 ``username``, and ``password``.
 '''
 
 @contextmanager
 def session(auth):
     '''
-    Create a session context to avoid explicitly passing authentication to 
+    Create a session context to avoid explicitly passing authentication to
     every function.
 
     Example:
@@ -134,7 +134,7 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
         raise AuthError("no password for %s in %s" % (alias, cfg))
     elif len(password) > 1:
         raise AuthError("too many passwords for %s in %s" % (alias, cfg))
-    return XnatAuth(url=url.pop().text, username=username.pop().text, 
+    return XnatAuth(url=url.pop().text, username=username.pop().text,
                         password=password.pop().text)
 
 Subject = col.namedtuple('Subject', [
@@ -144,19 +144,19 @@ Subject = col.namedtuple('Subject', [
     'project'
 ])
 '''
-Container to hold XNAT Subject information. Fields include the Subject URI 
+Container to hold XNAT Subject information. Fields include the Subject URI
 (``uri``), Accession ID (``id``), Project (``project``), and Label (``label``).
 '''
 
 def subjects(auth, label=None, project=None):
     '''
     Retrieve Subject tuples for subjects returned by this function.
-    
+
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
         >>> yaxil.subjects(auth, 'AB1234C')
-        Subject(uri=u'/data/experiments/XNAT_S0001', label=u'AB1234C', id=u'XNAT_S0001', 
+        Subject(uri=u'/data/experiments/XNAT_S0001', label=u'AB1234C', id=u'XNAT_S0001',
             project=u'MyProject')
 
     :param auth: XNAT authentication
@@ -184,7 +184,7 @@ def subjects(auth, label=None, project=None):
     if project:
         payload['project'] = project
     # submit the request
-    r = requests.get(url, params=payload, auth=(auth.username, auth.password), 
+    r = requests.get(url, params=payload, auth=(auth.username, auth.password),
                      verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
@@ -214,21 +214,21 @@ Experiment = col.namedtuple('Experiment', [
     'archived_date'
 ])
 '''
-Container to hold XNAT Experiment information. Fields include the Experiment URI 
-(``uri``), Accession ID (``id``), Project (``project``), Label (``label``), 
-Subject Accession ID (``subject_id``), Subject label (``subject_label``), and 
+Container to hold XNAT Experiment information. Fields include the Experiment URI
+(``uri``), Accession ID (``id``), Project (``project``), Label (``label``),
+Subject Accession ID (``subject_id``), Subject label (``subject_label``), and
 archived date (``archived_date``).
 '''
 
 def experiments(auth, label=None, project=None, subject=None):
     '''
     Retrieve Experiment tuples for experiments returned by this function.
-    
+
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
         >>> yaxil.experiment(auth, 'AB1234C')
-        Experiment(uri=u'/data/experiments/XNAT_E0001', label=u'AB1234C', id=u'XNAT_E0001', 
+        Experiment(uri=u'/data/experiments/XNAT_E0001', label=u'AB1234C', id=u'XNAT_E0001',
             project=u'MyProject', subject_id=u'XNAT_S0001', subject_label='ABC')
 
     :param auth: XNAT authentication
@@ -266,7 +266,7 @@ def experiments(auth, label=None, project=None, subject=None):
         payload['project'] = subject.project
         payload['xnat:subjectassessordata/subject_id'] = subject.id
     # submit request
-    r = requests.get(url, params=payload, auth=(auth.username, auth.password), 
+    r = requests.get(url, params=payload, auth=(auth.username, auth.password),
                      verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
@@ -280,12 +280,12 @@ def experiments(auth, label=None, project=None, subject=None):
     if int(results['totalRecords']) == 0:
         raise NoExperimentsError('no records returned for {0}'.format(r.url))
     for item in results['Result']:
-        yield Experiment(uri=item['URI'], 
-                         id=item['ID'], 
-                         project=item['project'], 
-                         label=item['label'], 
-                         subject_id=item['subject_ID'], 
-                         subject_label=item['subject_label'], 
+        yield Experiment(uri=item['URI'],
+                         id=item['ID'],
+                         project=item['project'],
+                         label=item['label'],
+                         subject_id=item['subject_ID'],
+                         subject_label=item['subject_label'],
                          archived_date=item['insert_date'])
 
 @functools.lru_cache
@@ -323,7 +323,7 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
              out_dir='.', in_mem=True, progress=False, attempts=1):
     '''
     Download scan data from XNAT.
-    
+
     Example:
         >>> import yaxil
         >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
@@ -347,24 +347,24 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     :type progress: int
     :param attempts: Number of download attempts
     :type attempts: int
-    ''' 
+    '''
     if not scan_ids:
         scan_ids = ['ALL']
     if not aid:
         aid = accession(auth, label, project)
     # build the url
-    url = "%s/data/experiments/%s/scans/%s/files?format=zip" % (auth.url.rstrip('/'), 
+    url = "%s/data/experiments/%s/scans/%s/files?format=zip" % (auth.url.rstrip('/'),
             aid, ','.join([str(x) for x in scan_ids]))
     # issue the http request, with exponential backoff retry behavior
     backoff = 10
-    for _ in range(attempts): 
+    for _ in range(attempts):
         logger.debug("issuing http request %s", url)
         r = requests.get(url, stream=True, auth=(auth.username, auth.password), verify=CHECK_CERTIFICATE)
         logger.debug("response headers %s", r.headers)
         if r.status_code == requests.codes.ok:
             break
         fuzz = random.randint(0, 10)
-        logger.warn("download unsuccessful (%s), retrying in %s seconds", r.status_code, 
+        logger.warn("download unsuccessful (%s), retrying in %s seconds", r.status_code,
                     backoff + fuzz)
         time.sleep(backoff + fuzz)
         backoff *= 2
@@ -425,10 +425,10 @@ def extract(zf, content, out_dir='.'):
     for i,member in enumerate(zf.infolist()):
         '''
         Right... so when Java 1.6 produces a Zip filesystem that exceeds 2^32
-        bytes, the Central Directory local file header offsets after the 2^32 
-        byte appear to overflow. The Python zipfile module then adds any 
-        unexpected bytes to each header offset thereafter. This attempts to fix 
-        that. My guess is that this comment might make perfect sense now, but 
+        bytes, the Central Directory local file header offsets after the 2^32
+        byte appear to overflow. The Python zipfile module then adds any
+        unexpected bytes to each header offset thereafter. This attempts to fix
+        that. My guess is that this comment might make perfect sense now, but
         will make aboslutely no sense in about a year.
         '''
         # undo concat padding added from zipfile.py:819
@@ -739,7 +739,7 @@ extendedboldqc.columns = {
 def _get(auth, path, fmt, autobox=True, params=None):
     '''
     Issue a GET request to the XNAT REST API and box the response content.
-    
+
     Example:
         >>> import yaxil
         >>> from yaxil import Format
@@ -842,4 +842,3 @@ def has(auth, xsitype, project=None):
     if int(result["ResultSet"]["totalRecords"]) == 0:
         return False
     return True
-
