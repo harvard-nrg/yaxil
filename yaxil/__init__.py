@@ -320,7 +320,8 @@ Container to hold download options. Not in use yet.
 '''
 
 def download(auth, label, scan_ids=None, project=None, aid=None,
-             out_dir='.', in_mem=True, progress=False, attempts=1):
+             out_dir='.', in_mem=True, progress=False, attempts=1,
+             out_format='flat'):
     '''
     Download scan data from XNAT.
 
@@ -341,6 +342,8 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     :type aid: str
     :param out_dir: Output directory
     :type out_dir: str
+    :param out_format: Extract all files or leave native structure
+    :type output_format: str
     :param in_mem: Keep download content in memory; faster but uses more memory
     :type in_mem: bool
     :param progress: Show download progress every N bytes
@@ -409,7 +412,12 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
         raise DownloadError("bad zip file, written to %s" % fo.name)
     # finally extract the zipfile (with various nasty edge cases handled)
     logger.debug("extracting zip archive to %s", out_dir)
-    extract(zf, content, out_dir)
+
+    if out_format == 'native':
+        zf.extractall(path=out_dir)
+    else:  # out_format == 'flat' or out_format == '1.4'
+        extract(zf, content, out_dir)
+
 
 def extract(zf, content, out_dir='.'):
     '''

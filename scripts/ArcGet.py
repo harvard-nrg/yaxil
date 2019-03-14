@@ -103,7 +103,7 @@ def main():
                 logger.info('downloading scans %s', ','.join(scan_ids))
                 sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
-                              attempts=3)
+                              attempts=3, out_format=args.output_format)
 
 def generate_bids_config(scans):
     config = col.defaultdict(lambda: col.defaultdict(list))
@@ -193,7 +193,7 @@ def parse_args():
         help='Turn off SSL certificate checking (needed for tunneled connections)')
     parser.add_argument('-o', '--output-dir', '--out-dir', default='.',
         help='Output directory')
-    parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat'], default='1.4',
+    parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat', 'native'], default='1.4',
         help='Output directory format')
     parser.add_argument('--bids', action='store_true',
         help='Output in BIDS format (same as --output-format=bids)')
