@@ -70,10 +70,12 @@ def atomic_write(filename, content, overwrite=True, permissions=0o0644, encoding
         raise WriteError('file already exists: {0}'.format(filename))
     dirname = os.path.dirname(filename)
     with tf.NamedTemporaryFile(dir=dirname, prefix='.', delete=False) as tmp:
-        if isinstance(content, six.string_types):
+        if encoding and isinstance(content, six.string_types):
             tmp.write(content.decode(encoding))
         else:
             tmp.write(content)
+        tmp.flush()
+        os.fsync(tmp.fileno())
     os.chmod(tmp.name, permissions)
     os.rename(tmp.name, filename)
 

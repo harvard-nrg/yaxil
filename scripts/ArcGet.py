@@ -77,7 +77,7 @@ def main():
         # read bids configuration file, or use command line arguments
         if args.config:
             with open(args.config, 'r') as fo:
-                config = yaml.load(fo)
+                config = yaml.load(fo, Loader=yaml.FullLoader)
             bids.bids_from_config(sess, scans_meta, config, args.output_dir)
         else:
             download = dict()

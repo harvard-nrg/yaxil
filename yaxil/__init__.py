@@ -395,6 +395,12 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
             meter = 0
         content.write(chunk)
         meter += chunk_size
+    # flush and fsync before moving on
+    content.flush()
+    try:
+        os.fsync(content.fileno())
+    except io.UnsupportedOperation:
+        pass
     # progress indicator shut down
     if progress:
         sys.stdout.write('done.\n'); sys.stdout.flush()
@@ -406,6 +412,8 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
                                    suffix=".zip", delete=False) as fo:
             content.seek(0)
             fo.write(content.read())
+            fo.flush()
+            os.fsync(fo.fileno())
         raise DownloadError("bad zip file, written to %s" % fo.name)
     # finally extract the zipfile (with various nasty edge cases handled)
     logger.debug("extracting zip archive to %s", out_dir)
@@ -448,6 +456,8 @@ def extract(zf, content, out_dir='.'):
                                    suffix=".zip", delete=False) as fo:
                 content.seek(0)
                 fo.write(content.read())
+                fo.flush()
+                os.fsync(fo.fileno())
             raise DownloadError("bad zip file, written to %s" % fo.name)
         # xnat archives may contain files that are gzipped without the .gz
         if not member.filename.endswith(".gz"):
@@ -460,8 +470,7 @@ def extract(zf, content, out_dir='.'):
         # write the file out to the filesystem
         bio.seek(0)
         f = os.path.join(out_dir, os.path.basename(member.filename))
-        with open(f, "wb") as fo:
-            fo.write(bio.read())
+        commons.atomic_write(f, bio.read(), encoding=False)
 
 def __quick_validate(r, check=('ResultSet', 'Result', 'totalRecords')):
     '''
