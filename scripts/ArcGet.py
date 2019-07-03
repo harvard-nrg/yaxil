@@ -69,7 +69,7 @@ def main():
 
     with yaxil.session(auth) as sess:
         # request all scan metadata for this mr session
-        scans_meta = list(sess.scans(args.label, args.project))
+        scans_meta = list(sess.scans(args.label, project=args.project))
         # download all scans if no scans, types, or tasks were requested
         scan_ids = [x['id'] for x in scans_meta if x['id']]
         if not args.scans and not args.types and not args.tasks:
