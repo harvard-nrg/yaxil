@@ -103,7 +103,7 @@ def main():
                 logger.info('downloading scans %s', ','.join(scan_ids))
                 sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
-                              attempts=3)
+                              attempts=3, out_format=args.output_format)
 
 def generate_bids_config(scans):
     config = col.defaultdict(lambda: col.defaultdict(list))
@@ -151,7 +151,7 @@ def find(scans_mdata, targets, key):
 
 def splitarg(args):
     '''
-    This function will split arguments separated by spaces or commas 
+    This function will split arguments separated by spaces or commas
     to be backwards compatible with the original ArcGet command line tool
     '''
     if not args:
@@ -181,7 +181,7 @@ def parse_args():
     group_c = parser.add_mutually_exclusive_group()
     group_c.add_argument('--scans', nargs='+',
         help='Raw scans numbers')
-    group_c.add_argument('-r', '--raw-types', nargs='+', 
+    group_c.add_argument('-r', '--raw-types', nargs='+',
         help='Same as --scans (deprecated)')
     parser.add_argument('-c', '--config',
         help='BIDS configuration')
@@ -193,7 +193,7 @@ def parse_args():
         help='Turn off SSL certificate checking (needed for tunneled connections)')
     parser.add_argument('-o', '--output-dir', '--out-dir', default='.',
         help='Output directory')
-    parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat'], default='1.4',
+    parser.add_argument('-f', '--output-format', choices=['1.4', 'bids', 'flat', 'native'], default='1.4',
         help='Output directory format')
     parser.add_argument('--bids', action='store_true',
         help='Output in BIDS format (same as --output-format=bids)')
@@ -203,4 +203,3 @@ def parse_args():
 
 if __name__ == '__main__':
     main()
-
