@@ -5,10 +5,12 @@ import io
 import sys
 import shutil
 import logging
+import yaxil
 import getpass as gp
 import argparse as ap
 import tempfile as tf
 from lxml import etree
+from yaxil.exceptions import NoExperimentsError,AccessionError
 
 _DEFAULT_ = '~/.xnat_auth'
 
@@ -79,6 +81,20 @@ def main():
     os.chmod(tmp.name, 0o0600)
     os.rename(tmp.name, auth_file)
 
+    auth = yaxil.auth(args.alias)
+    with yaxil.session(auth) as sess:
+        try:
+            aid = sess.accession('AB1234C')
+        except NoExperimentsError:
+            # test passed, experiment should not exist.
+            pass
+        except AccessionError as e:
+            print(e)
+            print()
+            print('invalid username/password combo, or some other xnat accessibility error.')
+            print()
+            exit(1)
+        
 class CheckEmpty(ap.Action):
     '''
     Checks that argument is not an empty string
