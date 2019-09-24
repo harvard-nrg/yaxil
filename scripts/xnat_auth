@@ -9,6 +9,7 @@ import yaxil
 import getpass as gp
 import argparse as ap
 import tempfile as tf
+import requests.exceptions
 from lxml import etree
 from yaxil.exceptions import NoExperimentsError,AccessionError
 
@@ -29,6 +30,8 @@ def main():
         help='XNAT URL e.g., "https://cbscentral.rc.fas.harvard.edu"')
     parser.add_argument('--password',
         help='XNAT password, omit to force password prompt (recommended)')
+    parser.add_argument('--no-validation', action='store_true',
+        help='Do not attempt to validate credentials')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -71,6 +74,21 @@ def main():
     etree.SubElement(alias_el, 'password').text = args.password
     root_el.append(alias_el)
 
+    # attempt to validate credentials before saving
+    if not args.no_validation:
+        auth = yaxil.XnatAuth(url=args.url, username=args.username, password=args.password)
+        try:
+            if not yaxil.test_auth(auth):
+                logger.critical('credentials are invalid')
+                sys.exit(1)
+            logger.info('credentials are valid')
+        except requests.exceptions.ConnectionError:
+            logger.critical('unable to connect to %s', args.url)
+            sys.exit(1)
+        except Exception as e:
+            logger.critical('an unexpected error has occurred')
+            raise e
+
     # create temporary auth file
     dirname = os.path.dirname(args.auth_file)
 
@@ -80,21 +98,8 @@ def main():
     # make sure permissions are restricted and rename over old file
     os.chmod(tmp.name, 0o0600)
     os.rename(tmp.name, auth_file)
+    logger.info('saved %s', auth_file)
 
-    auth = yaxil.auth(args.alias)
-    with yaxil.session(auth) as sess:
-        try:
-            aid = sess.accession('AB1234C')
-        except NoExperimentsError:
-            # test passed, experiment should not exist.
-            pass
-        except AccessionError as e:
-            print(e)
-            print()
-            print('invalid username/password combo, or some other xnat accessibility error.')
-            print()
-            exit(1)
-        
 class CheckEmpty(ap.Action):
     '''
     Checks that argument is not an empty string

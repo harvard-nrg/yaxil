@@ -50,6 +50,16 @@ Container to hold XNAT authentication information. Fields include the ``url``,
 ``username``, and ``password``.
 '''
 
+def test_auth(auth):
+    '''
+    Validate auth input against XNAT.
+    '''
+    url = '{0}/data/version'.format(auth.url.rstrip('/'))
+    r = requests.get(url, auth=(auth.username, auth.password))
+    if r.status_code == requests.codes.UNAUTHORIZED:
+        return False
+    return True
+
 @contextmanager
 def session(auth):
     '''
