@@ -58,3 +58,14 @@ If you're looking for information about ``ArcGet.py`` look no further
    :maxdepth: 2
 
    arcget
+
+xnat_auth
+---------------
+
+Command line tool that helps to set up ~/.xnat_auth file used by ``ArcGet.py``
+
+.. toctree::
+   :maxdepth: 2
+
+   xnat_auth
+
