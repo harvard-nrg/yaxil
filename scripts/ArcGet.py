@@ -3,6 +3,8 @@
 import os
 import re
 import sys
+import csv
+import six
 import json
 import yaml
 import yaxil
@@ -54,6 +56,12 @@ def main():
         auth = yaxil.auth(args.alias)
     elif args.host:
         auth = yaxil.auth(url=args.host)
+
+    # print readme and exit
+    if args.readme:
+        content = readme(auth, args.label, args.project)
+        print(content)
+        sys.exit(0)
 
     # to maintain backwards compatibility, split -r, -c, or -k arguments
     # that are comma-separated
@@ -164,6 +172,21 @@ def splitarg(args):
             split.append(arg)
     return split
 
+def readme(auth, label, project=None):
+    sio = six.StringIO()
+    writer = csv.writer(sio)
+    writer.writerow(['scan', 'type', 'series', 'quality', 'note'])
+    scans = yaxil.scans(auth, label=label, project=project)
+    for scan in sorted(scans, key=lambda x: int(x['id'])):
+        num = scan['id']
+        series = scan['series_description']
+        stype = scan['type']
+        quality = scan['quality']
+        note = scan['note']
+        writer.writerow([num, stype, series, quality, note])
+    sio.seek(0)
+    return sio.read()
+
 def parse_args():
     parser = argparse.ArgumentParser('Huzzah! Yet another XNAT downloader.')
     group_a = parser.add_mutually_exclusive_group(required=True)
@@ -197,6 +220,8 @@ def parse_args():
         help='Output directory format')
     parser.add_argument('--bids', action='store_true',
         help='Output in BIDS format (same as --output-format=bids)')
+    parser.add_argument('--readme', action='store_true',
+        help='Output scan summary in parsable format')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     return parser.parse_args()

@@ -7,7 +7,8 @@ requires = [
     'requests',
     'pydicom',
     'pyaml',
-    'lxml'
+    'lxml',
+    'six'
 ]
 
 test_requirements = [

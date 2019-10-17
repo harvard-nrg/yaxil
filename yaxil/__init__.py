@@ -606,6 +606,8 @@ def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
     params['xnat:mrSessionData/ID'] = aid
     _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
+        if result['xnat:mrscandata/id'] == '':
+            continue
         if scan_ids == None or result['xnat:mrscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(scans.columns.items()):

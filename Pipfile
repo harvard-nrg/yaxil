@@ -9,6 +9,7 @@ vcrpy = "*"
 
 [packages]
 pyaml = ">=4.2b1"
+six = "*"
 lxml = "*"
 pydicom = "*"
 requests = {extras = ["security"]}
