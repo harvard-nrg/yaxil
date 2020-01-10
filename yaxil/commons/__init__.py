@@ -1,9 +1,12 @@
 import os
 import six
+import logging
 import functools
 import itertools
 import argparse
 import tempfile as tf
+
+logger = logging.getLogger(__name__)
 
 struct  = argparse.Namespace
 
@@ -71,7 +74,8 @@ def atomic_write(filename, content, overwrite=True, permissions=0o0644, encoding
     dirname = os.path.dirname(filename)
     with tf.NamedTemporaryFile(dir=dirname, prefix='.', delete=False) as tmp:
         if encoding and isinstance(content, six.string_types):
-            tmp.write(content.decode(encoding))
+            logger.debug('writing string content with encoding %s', encoding)
+            tmp.write(content.encode(encoding))
         else:
             tmp.write(content)
         tmp.flush()

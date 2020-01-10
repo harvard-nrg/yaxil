@@ -170,10 +170,11 @@ def proc_fmap(config, args, func_refs=None):
                     logger.info('adding IntendedFor %s to %s', func_refs[intended], sidecar_file)
                     if 'IntendedFor' not in sidecarjs:
                         sidecarjs['IntendedFor'] = list()
-                    sidecarjs['IntendedFor'].append(func_refs[intended])
+                    if func_refs[intended] not in sidecarjs['IntendedFor']:
+                        sidecarjs['IntendedFor'].append(func_refs[intended])
             # if there is only one IntendedFor entry, don't store in a list
-            if 'IntendedFor' in sidecarjs and len(sidecarjs['IntendedFor']) == 1:
-                sidecarjs['IntendedFor'] = sidecarjs['IntendedFor'].pop()
+            #if 'IntendedFor' in sidecarjs and len(sidecarjs['IntendedFor']) == 1:
+            #    sidecarjs['IntendedFor'] = sidecarjs['IntendedFor'].pop()
             logger.info('writing file %s', sidecar_file)
             commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
