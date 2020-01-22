@@ -871,3 +871,85 @@ def has(auth, xsitype, project=None):
     if int(result["ResultSet"]["totalRecords"]) == 0:
         return False
     return True
+
+def storexar(auth, archive, verify=True):
+    '''
+    StoreXAR implementation
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param path: Filesystem location of ZIP (XAR) archive
+    :type path: str
+    '''
+    # soap envelope
+    envelope = '''<?xml version="1.0" encoding="UTF-8"?>
+                  <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+                                    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+                                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+                    <soapenv:Body>
+                      <execute soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" />
+                    </soapenv:Body>
+                  </soapenv:Envelope>'''
+
+    with requests.Session() as s:
+        # determine whether URL will be redirected
+        redir_url = requests.head(auth.url, allow_redirects=True, verify=verify).url
+
+        # create axis session
+        logger.debug('creating soap service session')
+        url = redir_url.rstrip('/') + '/axis/CreateServiceSession.jws'
+        r = s.post(
+            url,
+            data=envelope,
+            headers={
+                'User-Agent': 'Axis/1.3',
+                'SOAPAction': '""'
+            },
+            auth=(auth.username, auth.password),
+            verify=verify
+        )
+
+        if r.history:
+          for i,resp in enumerate(r.history):
+            logger.debug('SOAP service redirect #%i: %s to %s', i, resp.status_code, resp.url)
+
+        logger.debug('SOAP service session url: %s', r.url)
+        logger.debug('SOAP service session status: %s', r.status_code)
+        logger.debug('SOAP service session body: %s', r.text)
+        logger.debug('SOAP service session headers: \n%s', r.headers)
+
+        logger.debug('Session cookies: \n%s', requests.utils.dict_from_cookiejar(s.cookies))
+
+        if r.status_code != requests.codes.ok:
+            raise StoreXARError('response not ok (%s) from %s' % (r.status_code, r.url))
+
+        # post the xar archive
+        logger.debug('posting xar archive')
+        url = redir_url.rstrip('/') + '/app/template/StoreXAR.vm'
+        r = s.post(
+            url,
+            verify=verify,
+            files={
+                'archive': (archive, open(archive, 'rb'), 'application/octet-stream', {})
+            }
+        )
+
+        if r.history:
+          for i,resp in enumerate(r.history):
+            logger.debug('XAR archive upload redirect #%i: %s to %s', i, resp.status_code, resp.url)
+
+        logger.debug('XAR archive upload url: %s', r.url)
+        logger.debug('XAR archive upload status: %s', r.status_code)
+        logger.debug('XAR archive upload body: %s', r.text)
+        logger.debug('XAR archive upload headers: \n%s', r.headers)
+
+        if r.status_code != requests.codes.ok:
+            raise StoreXARError('response not ok (%s) from %s' % (r.status_code, r.url))
+
+        # check for success string in response content
+        if not 'Upload Complete' in r.text:
+            raise StoreXARError('response text from %s is\n%s' % (r.url, r.text))
+        logger.debug('upload complete')
+
+class StoreXARError(Exception):
+    pass
