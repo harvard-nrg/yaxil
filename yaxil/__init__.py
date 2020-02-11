@@ -5,6 +5,7 @@ import sys
 import gzip
 import json
 import time
+import arrow
 import random
 import sqlite3
 import zipfile
@@ -230,7 +231,7 @@ Subject Accession ID (``subject_id``), Subject label (``subject_label``), and
 archived date (``archived_date``).
 '''
 
-def experiments(auth, label=None, project=None, subject=None):
+def experiments(auth, label=None, project=None, subject=None, daterange=None):
     '''
     Retrieve Experiment tuples for experiments returned by this function.
 
@@ -249,6 +250,8 @@ def experiments(auth, label=None, project=None, subject=None):
     :type project: str
     :param subject: YAXIL Subject
     :type subject: :mod:`yaxil.Subject`
+    :param daterange: Start and end dates
+    :type daterange: tuple
     :returns: Experiment object
     :rtype: :mod:`yaxil.Experiment`
     '''
@@ -275,6 +278,10 @@ def experiments(auth, label=None, project=None, subject=None):
     if subject:
         payload['project'] = subject.project
         payload['xnat:subjectassessordata/subject_id'] = subject.id
+    if daterange:
+        start = arrow.get(daterange[0]).format('MM/DD/YYYY')
+        stop = arrow.get(daterange[1]).format('MM/DD/YYYY')
+        payload['date'] = '{0}-{1}'.format(start, stop)
     # submit request
     r = requests.get(url, params=payload, auth=(auth.username, auth.password),
                      verify=CHECK_CERTIFICATE)

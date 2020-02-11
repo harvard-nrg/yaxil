@@ -12,5 +12,6 @@ pyaml = ">=4.2b1"
 six = "*"
 lxml = "*"
 pydicom = "*"
+arrow = "*"
 requests = {extras = ["security"]}
-yaxil = {path = ".", editable = true}
+yaxil = {path = ".",editable = true}
