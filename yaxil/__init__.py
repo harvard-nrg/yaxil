@@ -845,6 +845,30 @@ def _autobox(content, format):
     else:
         raise AutoboxError("unknown autobox format %s" % format)
 
+def exists(auth, xnatid, datatype='experiments'):
+    '''
+    Test if an object exists
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param xnatid: XNAT object ID
+    :param xnatid: str
+    :param datatype: XNAT data type
+    :type datatype: str
+    :returns: True or False
+    :rtype: bool
+    '''
+    url = '{0}/data/{1}/{2}'.format(auth.url.rstrip('/'), datatype, xnatid)
+    logger.debug('issuing http request %s', url)
+    r = requests.get(
+        url,
+        auth=(auth.username, auth.password),
+        verify=CHECK_CERTIFICATE
+    )
+    if r.status_code == requests.codes.ok:
+        return True
+    return False
+
 def has(auth, xsitype, project=None):
     '''
     Test if a project contains any items of a particular xsi:type.

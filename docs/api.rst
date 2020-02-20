@@ -19,6 +19,8 @@ Functions
 .. autofunction:: scansearch
 .. autofunction:: download
 .. autofunction:: has
+.. autofunction:: exists
+.. autofunction:: storexar
 
 Classes
 -------
