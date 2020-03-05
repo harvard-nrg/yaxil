@@ -1,9 +1,7 @@
-.. _arcget
+.. _arcget:
 
 ArcGet.py: yet another XNAT command line downloader
 ===================================================
-
------------------------------------------
 
 The standard XNAT distribution provides a simple command line tool called 
 ``ArcGet`` that helps you download your imaging data from XNAT to your local 

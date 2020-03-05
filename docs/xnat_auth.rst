@@ -1,9 +1,7 @@
-.. _xnat_auth
+.. _xnat_auth:
 
 xnat_auth: authentication setup with verification
 ===================================================
-
------------------------------------------
 
 This tool is completely optional to use. You are free to simply edit the ``~/.xnat_auth``
 file directly using your text editor of choice, and the following template:

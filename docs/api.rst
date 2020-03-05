@@ -10,6 +10,7 @@ YAXIL API
 Functions
 ---------
 .. autofunction:: auth
+.. autofunction:: test_auth
 .. autofunction:: session
 .. autofunction:: subjects
 .. autofunction:: experiments

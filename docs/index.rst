@@ -6,8 +6,6 @@
 YAXIL: yet another XNAT interface library
 =========================================
 
------------------------------------------
-
 Yaxil is an XNAT interface library that started a long time ago in a galaxy far, 
 far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. This 
 documentation covers all of the functions and classes in YAXIL and examples 
