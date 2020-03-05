@@ -28,6 +28,9 @@ class Session(object):
     def exists(self, *args, **kwargs):
         return yaxil.exists(self._auth, *args, **kwargs)
 
+    def has(self, *args, **kwargs):
+        return yaxil.has(self._auth, *args, **kwargs)
+
     def storexar(self, *args, **kwargs):
         return yaxil.storexar(self._auth, *args, **kwargs)
 
