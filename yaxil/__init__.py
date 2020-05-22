@@ -56,10 +56,18 @@ def test_auth(auth):
     Validate auth input against XNAT.
     '''
     url = '{0}/data/version'.format(auth.url.rstrip('/'))
-    r = requests.get(url, auth=(auth.username, auth.password))
+    r = requests.get(url, auth=basicauth(auth))
     if r.status_code == requests.codes.UNAUTHORIZED:
         return False
     return True
+
+def basicauth(auth):
+    '''
+    Create basic auth tuple for requests.
+    '''
+    if auth.username and auth.password:
+        return (auth.username, auth.password)
+    return None
 
 @contextmanager
 def session(auth):
@@ -195,7 +203,7 @@ def subjects(auth, label=None, project=None):
     if project:
         payload['project'] = project
     # submit the request
-    r = requests.get(url, params=payload, auth=(auth.username, auth.password),
+    r = requests.get(url, params=payload, auth=basicauth(auth),
                      verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
@@ -283,8 +291,7 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
         stop = arrow.get(daterange[1]).format('MM/DD/YYYY')
         payload['date'] = '{0}-{1}'.format(start, stop)
     # submit request
-    r = requests.get(url, params=payload, auth=(auth.username, auth.password),
-                     verify=CHECK_CERTIFICATE)
+    r = requests.get(url, params=payload, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
         raise AccessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
@@ -379,7 +386,7 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     backoff = 10
     for _ in range(attempts):
         logger.debug("issuing http request %s", url)
-        r = requests.get(url, stream=True, auth=(auth.username, auth.password), verify=CHECK_CERTIFICATE)
+        r = requests.get(url, stream=True, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
         logger.debug("response headers %s", r.headers)
         if r.status_code == requests.codes.ok:
             break
@@ -549,7 +556,7 @@ def scansearch(auth, label, filt, project=None, aid=None):
     # get scans for accession as a csv
     url = "%s/data/experiments/%s/scans?format=csv" % (auth.url.rstrip('/'), aid)
     logger.debug("issuing http request %s", url)
-    r = requests.get(url, auth=(auth.username, auth.password), verify=CHECK_CERTIFICATE)
+    r = requests.get(url, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     if r.status_code != requests.codes.ok:
         raise ScanSearchError("response not ok (%s) from %s" % (r.status_code, r.url))
     if not r.content:
@@ -801,7 +808,7 @@ def _get(auth, path, fmt, autobox=True, params=None):
     params["format"] = fmt
     logger.debug("issuing http request %s", url)
     logger.debug("query parameters %s", params)
-    r = requests.get(url, params=params, auth=(auth.username, auth.password), verify=CHECK_CERTIFICATE)
+    r = requests.get(url, params=params, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     if r.status_code != requests.codes.ok:
         raise RestApiError("response not ok (%s) from %s" % (r.status_code, r.url))
     if not r.content:
@@ -862,7 +869,7 @@ def exists(auth, xnatid, datatype='experiments'):
     logger.debug('issuing http request %s', url)
     r = requests.get(
         url,
-        auth=(auth.username, auth.password),
+        auth=basicauth(auth),
         verify=CHECK_CERTIFICATE
     )
     if r.status_code == requests.codes.ok:
@@ -936,7 +943,7 @@ def storexar(auth, archive, verify=True):
                 'User-Agent': 'Axis/1.3',
                 'SOAPAction': '""'
             },
-            auth=(auth.username, auth.password),
+            auth=basicauth(auth),
             verify=verify
         )
 
