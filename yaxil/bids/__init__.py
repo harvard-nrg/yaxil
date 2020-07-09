@@ -241,6 +241,7 @@ def convert(input, output):
     dcm2niix = commons.which('dcm2niix')
     cmd = [
         'dcm2niix',
+        '-m', 'y',
         '-s', 'y',
         '-b', 'y',
         '-z', 'y',

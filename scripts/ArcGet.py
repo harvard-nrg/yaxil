@@ -11,7 +11,7 @@ import yaxil
 import string
 import logging
 import tarfile
-import argparse
+import argparse as ap
 import tempfile as tf
 import subprocess as sp
 import collections as col
@@ -84,8 +84,7 @@ def main():
             args.scans = scan_ids
         # read bids configuration file, or use command line arguments
         if args.config:
-            with open(args.config, 'r') as fo:
-                config = yaml.load(fo, Loader=yaml.FullLoader)
+            config = yaml.load(args.config, Loader=yaml.FullLoader)
             bids.bids_from_config(sess, scans_meta, config, args.output_dir)
         else:
             download = dict()
@@ -188,7 +187,7 @@ def readme(auth, label, project=None):
     return sio.read()
 
 def parse_args():
-    parser = argparse.ArgumentParser('Huzzah! Yet another XNAT downloader.')
+    parser = ap.ArgumentParser('Huzzah! Yet another XNAT downloader.')
     group_a = parser.add_mutually_exclusive_group(required=True)
     group_a.add_argument('-a', '--alias',
         help='XNAT alias within ~/.xnat_auth')
@@ -206,7 +205,7 @@ def parse_args():
         help='Raw scans numbers')
     group_c.add_argument('-r', '--raw-types', nargs='+',
         help='Same as --scans (deprecated)')
-    parser.add_argument('-c', '--config',
+    parser.add_argument('-c', '--config', type=ap.FileType('r'), default=sys.stdin,
         help='BIDS configuration')
     parser.add_argument('-t', '--types', nargs='+',
         help='Scans types')
