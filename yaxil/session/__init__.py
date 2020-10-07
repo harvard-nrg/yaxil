@@ -3,6 +3,8 @@ import yaxil
 class Session(object):
     def __init__(self, auth):
         self._auth = auth
+        self.url = auth.url
+        self.username = auth.username
 
     def accession(self, *args, **kwargs):
         return yaxil.accession(self._auth, *args, **kwargs)

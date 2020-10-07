@@ -11,14 +11,16 @@ logger = logging.getLogger(__name__)
 # bids legal characters for sub, ses, and task
 legal = re.compile('[^a-zA-Z0-9]')
 
-def bids_from_config(sess, scans_metadata, config, out_base):
+def bids_from_config(yaxil_session, scans_metadata, config, out_base):
     '''
     Create a BIDS output directory from configuration file
     '''
     # get session and subject labels from scan metadata
     _item = next(iter(scans_metadata))
-    session,subject = _item['session_label'],_item['subject_label']
-    # bids and sourcedata base directories
+    project,session,subject = _item['session_project'],_item['session_label'],_item['subject_label']
+    # check for dataset_description.json and create it if necessary
+    check_dataset_description(out_base)
+    # define bids and sourcedata base directories
     sourcedata_base = os.path.join(
         out_base,
         'sourcedata',
@@ -30,11 +32,12 @@ def bids_from_config(sess, scans_metadata, config, out_base):
         'sub-{0}'.format(legal.sub('', subject)),
         'ses-{0}'.format(legal.sub('', session))
     )
-    # put arguments in a struct
+    # put arguments in a struct for convenience
     args = commons.struct(
-        xnat=sess,
+        xnat=yaxil_session,
         subject=subject,
         session=session,
+        project=project,
         bids=bids_base,
         sourcedata=sourcedata_base
     )
@@ -43,6 +46,19 @@ def bids_from_config(sess, scans_metadata, config, out_base):
     anat_refs = proc_anat(config, args)
     fmap_refs = proc_fmap(config, args, func_refs)
 
+def check_dataset_description(bids_dir, bids_version='1.4.0', ds_type='raw'):
+    if not os.path.exists(bids_dir):
+        os.makedirs(bids_dir)
+    ds_desc = os.path.join(bids_dir, 'dataset_description.json')
+    if not os.path.exists(ds_desc):
+        js = {
+            'Name': 'Made by YAXIL',
+            'BIDSVersion': bids_version,
+            'DatasetType': ds_type
+        }
+        with open(ds_desc, 'w') as fo:
+            fo.write(json.dumps(js))
+    
 def proc_func(config, args):
     '''
     Download functional data and convert to BIDS
@@ -81,6 +97,21 @@ def proc_func(config, args):
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
+        # add xnat source information to json sidecar
+        sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
+        with open(sidecar_file) as fo:
+            sidecarjs = json.load(fo)
+        sidecarjs['DataSource'] = {
+            'application/x-xnat': {
+                'url': args.xnat.url,
+                'project': args.project,
+                'subject': args.subject,
+                'experiment': args.session,
+                'scan': scan['scan']
+            }
+        }
+        # write out updated json sidecar
+        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
 def proc_anat(config, args):
@@ -117,6 +148,21 @@ def proc_anat(config, args):
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
+        # add xnat source information to json sidecar
+        sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
+        with open(sidecar_file) as fo:
+            sidecarjs = json.load(fo)
+        sidecarjs['DataSource'] = {
+            'application/x-xnat': {
+                'url': args.xnat.url,
+                'project': args.project,
+                'subject': args.subject,
+                'experiment': args.session,
+                'scan': scan['scan']
+            }
+        }
+        # write out updated json sidecar
+        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
 def proc_fmap(config, args, func_refs=None):
@@ -159,12 +205,21 @@ def proc_fmap(config, args, func_refs=None):
                 rename_fmapm(args.bids, fbase)
             elif scan.get('modality', None) == 'phase':
                 rename_fmapp(args.bids, fbase)
-        # get the json sidecar
+        # add xnat source information to json sidecar
         sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
-        # insert intended-for into JSON sidecar
+        with open(sidecar_file, 'r') as fo:
+            sidecarjs = json.load(fo)
+        sidecarjs['DataSource'] = {
+            'application/x-xnat': {
+                'url': args.xnat.url,
+                'project': args.project,
+                'subject': args.subject,
+                'experiment': args.session,
+                'scan': scan['scan']
+            }
+        }
+        # insert intended-for into json sidecar
         if 'intended for' in scan and func_refs:
-            with open(sidecar_file, 'r') as fo:
-                sidecarjs = json.load(fo)
             for intended in scan['intended for']:
                 if intended in func_refs:
                     logger.info('adding IntendedFor %s to %s', func_refs[intended], sidecar_file)
@@ -172,11 +227,9 @@ def proc_fmap(config, args, func_refs=None):
                         sidecarjs['IntendedFor'] = list()
                     if func_refs[intended] not in sidecarjs['IntendedFor']:
                         sidecarjs['IntendedFor'].append(func_refs[intended])
-            # if there is only one IntendedFor entry, don't store in a list
-            #if 'IntendedFor' in sidecarjs and len(sidecarjs['IntendedFor']) == 1:
-            #    sidecarjs['IntendedFor'] = sidecarjs['IntendedFor'].pop()
             logger.info('writing file %s', sidecar_file)
-            commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
+        # write out updated json sidecar
+        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
 def iterconfig(config, scan_type):
