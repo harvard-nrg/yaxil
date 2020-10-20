@@ -18,6 +18,7 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base):
     # get session and subject labels from scan metadata
     _item = next(iter(scans_metadata))
     project,session,subject = _item['session_project'],_item['session_label'],_item['subject_label']
+    session_id,subject_id = _item['session_id'],_item['subject_id']
     # check for dataset_description.json and create it if necessary
     check_dataset_description(out_base)
     # define bids and sourcedata base directories
@@ -36,7 +37,9 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base):
     args = commons.struct(
         xnat=yaxil_session,
         subject=subject,
+        subject_id=subject_id,
         session=session,
+        session_id=session_id,
         project=project,
         bids=bids_base,
         sourcedata=sourcedata_base
@@ -106,7 +109,9 @@ def proc_func(config, args):
                 'url': args.xnat.url,
                 'project': args.project,
                 'subject': args.subject,
+                'subject_id': args.subject_id,
                 'experiment': args.session,
+                'experiment_id': args.session_id,
                 'scan': scan['scan']
             }
         }
@@ -157,7 +162,9 @@ def proc_anat(config, args):
                 'url': args.xnat.url,
                 'project': args.project,
                 'subject': args.subject,
+                'subject_id': args.subject_id,
                 'experiment': args.session,
+                'experiment_id': args.session_id,
                 'scan': scan['scan']
             }
         }
@@ -214,7 +221,9 @@ def proc_fmap(config, args, func_refs=None):
                 'url': args.xnat.url,
                 'project': args.project,
                 'subject': args.subject,
+                'subject_id': args.subject_id,
                 'experiment': args.session,
+                'experiment_id': args.session_id,
                 'scan': scan['scan']
             }
         }
