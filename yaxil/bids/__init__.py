@@ -1,5 +1,6 @@
 import re
 import os
+import glob
 import json
 import string
 import logging
@@ -147,29 +148,45 @@ def proc_anat(config, args):
         dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
-        # convert to nifti
+        # convert to nifti (edge cases for T1w_vNav_setter)
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
-        convert(dicom_dir, fullfile)
-        # add xnat source information to json sidecar
-        sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
-        with open(sidecar_file) as fo:
-            sidecarjs = json.load(fo)
-        sidecarjs['DataSource'] = {
-            'application/x-xnat': {
-                'url': args.xnat.url,
-                'project': args.project,
-                'subject': args.subject,
-                'subject_id': args.subject_id,
-                'experiment': args.session,
-                'experiment_id': args.session_id,
-                'scan': scan['scan']
+        modality = scan.get('modality', None)
+        sidecar_files = list()
+        if modality == 'T1vnav':
+            fullfile = fullfile.replace('_T1vnav', '_split-%r_T1vnav')
+            for f in glob.glob(os.path.join(dicom_dir, '*.dcm')):
+                logger.debug('converting single file %s to %s', f, fullfile)
+                convert(f, fullfile, single_file=True)
+            ffbase = re.sub('.nii(.gz)?', '', fullfile)
+            expr = ffbase.replace('%r', '*') + '.json'
+            logger.debug('globbing for %s', expr)
+            sidecar_files = glob.glob(expr)
+        else:
+            convert(dicom_dir, fullfile)
+            sidecar_files = [
+                os.path.join(args.bids, scan['type'], fbase + '.json')
+            ]
+        # add xnat source information to json sidecar files
+        for sidecar_file in sidecar_files:
+            logger.debug('adding provenance to %s', sidecar_file)
+            with open(sidecar_file) as fo:
+                sidecarjs = json.load(fo)
+            sidecarjs['DataSource'] = {
+                'application/x-xnat': {
+                    'url': args.xnat.url,
+                    'project': args.project,
+                    'subject': args.subject,
+                    'subject_id': args.subject_id,
+                    'experiment': args.session,
+                    'experiment_id': args.session_id,
+                    'scan': scan['scan']
+                }
             }
-        }
-        # write out updated json sidecar
-        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
+            # write out updated json sidecar
+            commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
 def proc_fmap(config, args, func_refs=None):
@@ -291,7 +308,7 @@ def rename_fmapp(bids_base, basename):
             files[ext] = dst
     return files
 
-def convert(input, output):
+def convert(input, output, single_file=False):
     '''
     Run dcm2niix on input file
     '''
@@ -302,14 +319,18 @@ def convert(input, output):
     basename = re.sub('.nii(.gz)?', '', basename)
     dcm2niix = commons.which('dcm2niix')
     cmd = [
-        'dcm2niix',
-        '-m', 'y',
-        '-s', 'y',
+        'dcm2niix'
+    ]
+    if single_file:
+        cmd.extend([
+            '-s', 'y'
+        ])
+    cmd.extend([
         '-b', 'y',
         '-z', 'y',
         '-f', basename,
         '-o', dirname,
         input
-    ]
+    ])
     logger.debug(cmd)
     sp.check_output(cmd)
