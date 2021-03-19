@@ -13,6 +13,7 @@ import logging
 import requests
 import itertools
 import tempfile as tf
+import subprocess as sp
 import collections as col
 from argparse import Namespace
 from contextlib import contextmanager
@@ -24,7 +25,8 @@ from .session import Session
 from .exceptions import (AuthError, MultipleAccessionError,  NoAccessionError,
                          AccessionError, DownloadError, ResultSetError,
                          ScanSearchError, EQCNotFoundError, RestApiError,
-                         AutoboxError, NoExperimentsError, NoSubjectsError)
+                         AutoboxError, NoExperimentsError, NoSubjectsError,
+                         CommandNotFoundError)
 
 # Whether to verify SSL certificates. Primarily of use during testing.
 CHECK_CERTIFICATE = True
@@ -909,6 +911,40 @@ def has(auth, xsitype, project=None):
     if int(result["ResultSet"]["totalRecords"]) == 0:
         return False
     return True
+
+def storexar_cli(auth, archive):
+    '''
+    StoreXAR through command line utility
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param path: Filesystem location of ZIP (XAR) archive
+    :type path: str
+    '''
+    StoreXAR = commons.which('StoreXAR')
+    if not StoreXAR:
+        raise CommandNotFoundError('StoreXAR not found')
+    archive = os.path.abspath(archive)
+    popd = os.getcwd()
+    os.chdir(os.path.dirname(StoreXAR))
+    cmd = [
+        'sh',
+        'StoreXAR',
+        '-host', auth.url,
+        '-u', auth.username,
+        '-p', auth.password,
+        '-f', archive
+    ]
+    try:
+        logger.debug(cmd)
+        output = sp.check_output(cmd, stderr=sp.PIPE).decode()
+        if 'Upload Completed' in output:
+            logger.info('XAR upload complete')
+    except sp.CalledProcessError as e:
+        logger.error(e.stdout)
+        logger.error(e.stderr)
+        raise e
+    os.chdir(popd)
 
 def storexar(auth, archive, verify=True):
     '''

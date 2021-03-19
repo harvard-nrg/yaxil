@@ -37,3 +37,6 @@ class RestApiError(YaxilError):
 class AutoboxError(YaxilError):
     pass
 
+class CommandNotFoundError(YaxilError):
+    pass
+
