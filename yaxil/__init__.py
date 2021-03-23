@@ -98,6 +98,30 @@ def session(auth):
     sess = Session(auth)
     yield sess
 
+def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth'):
+    # First, look for authentication data in ~/.xnat_auth
+    if alias:
+        logger.debug('returning authentication data from %s', cfg)
+        return auth(alias)
+    # Second, look for authentication data from --host, --user, --password function arguments
+    authargs = (host, username, password)
+    if any(authargs):
+        if not all(authargs):
+            raise AuthError('you must supply --host, --username, and --password')
+        logger.debug('returning authentication data from --host, --username, and --password')
+        return XnatAuth(url=host, username=username, password=password)
+    # Third, look for authentication data in environment variables
+    host = os.environ.get('XNAT_HOST', None)
+    username = os.environ.get('XNAT_USER', None)
+    password = os.environ.get('XNAT_PASS', None)
+    authargs = (host, username, password)
+    if any(authargs):
+        if not all(authargs):
+            raise AuthError('you must set $XNAT_HOST, $XNAT_USER, and $XNAT_PASS environment variables')
+        logger.debug('returning authentication data from $XNAT_HOST, $XNAT_USER, and $XNAT_PASS environment variables')
+        return XnatAuth(url=host, username=username, password=password)
+    raise AuthError('you must provide -a|--alias or --host, --username, and --password or set $XNAT_HOST, $XNAT_USER, and $XNAT_PASS')
+
 def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     '''
     Read connection details from an xnat_auth XML file

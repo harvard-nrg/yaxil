@@ -52,10 +52,7 @@ def main():
     if args.insecure:
         yaxil.CHECK_CERTIFICATE = False
 
-    if args.alias:
-        auth = yaxil.auth(args.alias)
-    elif args.host:
-        auth = yaxil.auth(url=args.host)
+    auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
     # print readme and exit
     if args.readme:
@@ -188,22 +185,25 @@ def readme(auth, label, project=None):
 
 def parse_args():
     parser = ap.ArgumentParser('Huzzah! Yet another XNAT downloader.')
-    group_a = parser.add_mutually_exclusive_group(required=True)
-    group_a.add_argument('-a', '--alias',
+    parser.add_argument('-a', '--alias',
         help='XNAT alias within ~/.xnat_auth')
-    group_a.add_argument('-host',
-        help='XNAT url within ~/.xnat_auth')
-    group_b = parser.add_mutually_exclusive_group(required=True)
-    group_b.add_argument('-l', '--label',
+    parser.add_argument('-host', '--host',
+        help='XNAT host')
+    parser.add_argument('--username',
+        help='XNAT username')
+    parser.add_argument('--password',
+        help='XNAT password')
+    group_a = parser.add_mutually_exclusive_group(required=True)
+    group_a.add_argument('-l', '--label',
         help='XNAT Session Label')
-    group_b.add_argument('-s', '--session',
+    group_a.add_argument('-s', '--session',
         help='Same as --label (deprecated)')
     parser.add_argument('-p', '--project',
         help='XNAT Session Project')
-    group_c = parser.add_mutually_exclusive_group()
-    group_c.add_argument('--scans', nargs='+',
+    group_b = parser.add_mutually_exclusive_group()
+    group_b.add_argument('--scans', nargs='+',
         help='Raw scans numbers')
-    group_c.add_argument('-r', '--raw-types', nargs='+',
+    group_b.add_argument('-r', '--raw-types', nargs='+',
         help='Same as --scans (deprecated)')
     parser.add_argument('-c', '--config', type=ap.FileType('r'), default=sys.stdin,
         help='BIDS configuration')
