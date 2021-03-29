@@ -81,6 +81,7 @@ def main():
             args.scans = scan_ids
         # read bids configuration file, or use command line arguments
         if args.config:
+            logger.debug('reading bids configuration from %s', args.config)
             config = yaml.load(args.config, Loader=yaml.FullLoader)
             bids.bids_from_config(sess, scans_meta, config, args.output_dir)
         else:
@@ -205,7 +206,7 @@ def parse_args():
         help='Raw scans numbers')
     group_b.add_argument('-r', '--raw-types', nargs='+',
         help='Same as --scans (deprecated)')
-    parser.add_argument('-c', '--config', type=ap.FileType('r'), default=sys.stdin,
+    parser.add_argument('-c', '--config', type=ap.FileType('r'),
         help='BIDS configuration')
     parser.add_argument('-t', '--types', nargs='+',
         help='Scans types')
