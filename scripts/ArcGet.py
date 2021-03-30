@@ -40,7 +40,7 @@ def main():
 
     # --bids deprecation warning
     if args.bids:
-        logger.warn('DEPRECATION WARNING: use -o|--output-format bids instead of --bids')
+        logger.warn('DEPRECATION WARNING: use -f|--output-format bids instead of --bids')
         args.output_format = 'bids'
 
     args.output_dir = os.path.expanduser(args.output_dir)
