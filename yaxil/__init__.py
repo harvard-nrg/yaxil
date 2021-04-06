@@ -12,6 +12,7 @@ import zipfile
 import logging
 import requests
 import itertools
+import getpass as gp
 import tempfile as tf
 import subprocess as sp
 import collections as col
@@ -99,28 +100,33 @@ def session(auth):
     yield sess
 
 def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth'):
+    result = tuple()
     # First, look for authentication data in ~/.xnat_auth
     if alias:
         logger.debug('returning authentication data from %s', cfg)
         return auth(alias)
     # Second, look for authentication data from --host, --user, --password function arguments
-    authargs = (host, username, password)
+    authargs = (host, username)
     if any(authargs):
         if not all(authargs):
-            raise AuthError('you must supply --host, --username, and --password')
-        logger.debug('returning authentication data from --host, --username, and --password')
+            raise AuthError('you must supply --host, --username and --password (or password prompt)')
+        logger.debug('returning authentication data from command line')
+        if not password:
+            password = gp.getpass('Enter XNAT passphrase:')
         return XnatAuth(url=host, username=username, password=password)
     # Third, look for authentication data in environment variables
     host = os.environ.get('XNAT_HOST', None)
     username = os.environ.get('XNAT_USER', None)
     password = os.environ.get('XNAT_PASS', None)
-    authargs = (host, username, password)
+    authargs = (host, username)
     if any(authargs):
         if not all(authargs):
-            raise AuthError('you must set $XNAT_HOST, $XNAT_USER, and $XNAT_PASS environment variables')
-        logger.debug('returning authentication data from $XNAT_HOST, $XNAT_USER, and $XNAT_PASS environment variables')
+            raise AuthError('you must set $XNAT_HOST, $XNAT_USER, and $XNAT_PASS (or password prompt)')
+        logger.debug('returning authentication data from environment variables')
+        if not password:
+            password = gp.getpass('Enter XNAT passphrase:')
         return XnatAuth(url=host, username=username, password=password)
-    raise AuthError('you must provide -a|--alias or --host, --username, and --password or set $XNAT_HOST, $XNAT_USER, and $XNAT_PASS')
+    raise AuthError('you must provide authentication data using xnat_auth, command line, or environment variables')
 
 def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     '''
@@ -176,11 +182,16 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     # get password
     password = res.findall("password")
     if not password:
-        raise AuthError("no password for %s in %s" % (alias, cfg))
+        password = gp.getpass('Enter XNAT passphrase:')
     elif len(password) > 1:
         raise AuthError("too many passwords for %s in %s" % (alias, cfg))
-    return XnatAuth(url=url.pop().text, username=username.pop().text,
-                        password=password.pop().text)
+    else:
+        password = password.pop().text
+    return XnatAuth(
+        url=url.pop().text,
+        username=username.pop().text,
+        password=password
+    )
 
 Subject = col.namedtuple('Subject', [
     'uri',
