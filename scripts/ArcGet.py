@@ -188,7 +188,7 @@ def parse_args():
     parser = ap.ArgumentParser('Huzzah! Yet another XNAT downloader.')
     parser.add_argument('-a', '--alias',
         help='XNAT alias within ~/.xnat_auth')
-    parser.add_argument('-host', '--host',
+    parser.add_argument('--host', '-host',
         help='XNAT host')
     parser.add_argument('--username',
         help='XNAT username')
