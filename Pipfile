@@ -13,5 +13,6 @@ six = "*"
 lxml = "*"
 pydicom = "*"
 arrow = "*"
+natsort = "*"
 requests = {extras = ["security"]}
 yaxil = {path = ".",editable = true}

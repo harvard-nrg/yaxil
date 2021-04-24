@@ -17,6 +17,7 @@ import subprocess as sp
 import collections as col
 import yaxil.bids as bids
 import yaxil.commons as commons
+from natsort import natsorted
 
 logger = logging.getLogger(__file__)
 
@@ -104,7 +105,7 @@ def main():
                 config = generate_bids_config(download)
                 bids.bids_from_config(sess, scans_meta, config, args.output_dir)
             else:
-                scan_ids = sorted(download.keys(), key=int)
+                scan_ids = natsorted(download.keys())
                 logger.info('downloading scans %s', ','.join(scan_ids))
                 sess.download(args.label, scan_ids, project=args.project,
                               out_dir=args.output_dir, progress=1024**2,
@@ -174,7 +175,7 @@ def readme(auth, label, project=None):
     writer = csv.writer(sio)
     writer.writerow(['scan', 'type', 'series', 'quality', 'note'])
     scans = yaxil.scans(auth, label=label, project=project)
-    for scan in sorted(scans, key=lambda x: int(x['id'])):
+    for scan in natsorted(scans, key=lambda x: x['id']):
         num = scan['id']
         series = scan['series_description']
         stype = scan['type']
