@@ -17,6 +17,7 @@ import subprocess as sp
 import collections as col
 import yaxil.bids as bids
 import yaxil.commons as commons
+from yaxil import __version__
 from natsort import natsorted
 
 logger = logging.getLogger(__file__)
@@ -225,6 +226,7 @@ def parse_args():
         help='Output scan summary in parsable format')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
+    parser.add_argument('--version', action='version', version=__version__.__version__)
     return parser.parse_args()
 
 if __name__ == '__main__':
