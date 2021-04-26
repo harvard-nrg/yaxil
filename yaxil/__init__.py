@@ -23,6 +23,7 @@ import xml.etree.ElementTree as etree
 import yaxil.commons as commons
 import yaxil.functools as functools
 from .session import Session
+from . import __version__
 from .exceptions import (AuthError, MultipleAccessionError,  NoAccessionError,
                          AccessionError, DownloadError, ResultSetError,
                          ScanSearchError, EQCNotFoundError, RestApiError,
@@ -53,6 +54,9 @@ XnatAuth = col.namedtuple("XnatAuth", [
 Container to hold XNAT authentication information. Fields include the ``url``,
 ``username``, and ``password``.
 '''
+
+def version():
+    return __version__.__version__
 
 def test_auth(auth):
     '''
@@ -428,8 +432,8 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
         if r.status_code == requests.codes.ok:
             break
         fuzz = random.randint(0, 10)
-        logger.warn("download unsuccessful (%s), retrying in %s seconds", r.status_code,
-                    backoff + fuzz)
+        logger.warning("download unsuccessful (%s), retrying in %s seconds", r.status_code,
+            backoff + fuzz)
         time.sleep(backoff + fuzz)
         backoff *= 2
     # if we still have a not-ok status at this point, the download failed
@@ -620,7 +624,7 @@ def scansearch(auth, label, filt, project=None, aid=None):
             raise
     return result
 
-def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
+def mrscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     '''
     Get scan information for a MR Session as a sequence of dictionaries.
 
@@ -652,20 +656,21 @@ def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
     path = '/data/experiments'
     params = {
         'xsiType': 'xnat:mrSessionData',
-        'columns': ','.join(scans.columns.keys())
+        'xnat:mrSessionData/ID': aid,
+        'columns': ','.join(mrscans.columns.keys())
     }
-    params['xnat:mrSessionData/ID'] = aid
     _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
-        if result['xnat:mrscandata/id'] == '':
+        if not result['xnat:mrscandata/id']:
             continue
         if scan_ids == None or result['xnat:mrscandata/id'] in scan_ids:
             data = dict()
-            for k,v in iter(scans.columns.items()):
+            for k,v in iter(mrscans.columns.items()):
                 data[v] = result[k]
             yield data
-scans.columns = {
+mrscans.columns = {
     "URI": "session_uri",
+    "xsiType": "xsitype",
     "insert_date": "date_archived",
     "operator": "operator",
     "insert_user": "archiver",
@@ -701,6 +706,159 @@ scans.columns = {
     "xnat:mrscandata/parameters/seqvariant": "sequence_variant",
     "xnat:mrscandata/parameters/acqtype": "acquisition_type",
     "xnat:mrscandata/parameters/pixelbandwidth": "pix_bandwidth"
+}
+
+def srscans(auth, label=None, scan_ids=None, project=None, experiment=None):
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'xnat:mrSessionData',
+        'xnat:mrSessionData/ID': aid,
+        'columns': ','.join(srscans.columns.keys())
+    }
+    _,result = _get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if not result['xnat:imagescandata/id']:
+            continue
+        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+            data = dict()
+            for k,v in iter(srscans.columns.items()):
+                data[v] = result[k]
+            yield data
+srscans.columns = {
+    "URI": "session_uri",
+    "xsiType": "xsitype",
+    "insert_date": "date_archived",
+    "operator": "operator",
+    "insert_user": "archiver",
+    "xnat:mrsessiondata/id": "session_id",
+    "xnat:mrsessiondata/label": "session_label",
+    "xnat:mrsessiondata/project": "session_project",
+    "xnat:mrsessiondata/date": "date_scanned",
+    "xnat:mrsessiondata/time": "time_scanned",
+    "xnat:subjectdata/id": "subject_id",
+    "subject_label": "subject_label",
+    "subject_project": "subject_project",
+    "xnat:imagescandata/id": "id",
+    "xnat:srscandata/quality": "quality",
+    "xnat:srscandata/note": "note",
+    "xnat:srscandata/type": "type"
+}
+
+def scscans(auth, label=None, scan_ids=None, project=None, experiment=None):
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'xnat:mrSessionData',
+        'xnat:mrSessionData/ID': aid,
+        'columns': ','.join(scscans.columns.keys())
+    }
+    _,result = _get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if not result['xnat:imagescandata/id']:
+            continue
+        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+            data = dict()
+            for k,v in iter(scscans.columns.items()):
+                data[v] = result[k]
+            yield data
+scscans.columns = {
+    "URI": "session_uri",
+    "xsiType": "xsitype",
+    "insert_date": "date_archived",
+    "operator": "operator",
+    "insert_user": "archiver",
+    "xnat:mrsessiondata/id": "session_id",
+    "xnat:mrsessiondata/label": "session_label",
+    "xnat:mrsessiondata/project": "session_project",
+    "xnat:mrsessiondata/date": "date_scanned",
+    "xnat:mrsessiondata/time": "time_scanned",
+    "xnat:subjectdata/id": "subject_id",
+    "subject_label": "subject_label",
+    "subject_project": "subject_project",
+    "xnat:imagescandata/id": "id",
+    "xnat:imagescandata/quality": "quality",
+    "xnat:imagescandata/note": "note",
+    "xnat:imagescandata/type": "type"
+}
+
+def odscans(auth, label=None, scan_ids=None, project=None, experiment=None):
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'xnat:mrSessionData',
+        'xnat:mrSessionData/ID': aid,
+        'columns': ','.join(odscans.columns.keys())
+    }
+    _,result = _get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if not result['xnat:imagescandata/id']:
+            continue
+        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+            data = dict()
+            for k,v in iter(odscans.columns.items()):
+                data[v] = result[k]
+            yield data
+odscans.columns = {
+    "URI": "session_uri",
+    "xsiType": "xsitype",
+    "insert_date": "date_archived",
+    "operator": "operator",
+    "insert_user": "archiver",
+    "xnat:mrsessiondata/id": "session_id",
+    "xnat:mrsessiondata/label": "session_label",
+    "xnat:mrsessiondata/project": "session_project",
+    "xnat:mrsessiondata/date": "date_scanned",
+    "xnat:mrsessiondata/time": "time_scanned",
+    "xnat:subjectdata/id": "subject_id",
+    "subject_label": "subject_label",
+    "subject_project": "subject_project",
+    "xnat:imagescandata/id": "id",
+    "xnat:imagescandata/quality": "quality",
+    "xnat:imagescandata/note": "note",
+    "xnat:imagescandata/type": "type"
+}
+
+def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
+    # get all scan xsi:type for this session
+    path = f'/data/experiments/{aid}/scans'
+    params = {
+        'columns': 'xsiType'
+    }
+    _,result = _get(auth, path, 'json', autobox=True)
+    xsitypes = set()
+    for result in result['ResultSet']['Result']:
+        xsitypes.add(result['xsiType'])
+    logger.debug('xsi:type for scans are %s', xsitypes)
+    # call the correct function for each scan type found
+    for xsitype in xsitypes:
+        if xsitype not in scans.func:
+            logger.warning('could not find a handler for %s', xsitype)
+            continue
+        for scan in scans.func[xsitype](auth, label, scan_ids, project, experiment):
+            yield scan
+scans.func = {
+    'xnat:mrScanData': mrscans,
+    'xnat:srScanData': srscans,
+    'xnat:scScanData': scscans,
+    'xnat:otherDicomScanData': odscans
 }
 
 def extendedboldqc(auth, label, scan_ids=None, project=None, aid=None):
