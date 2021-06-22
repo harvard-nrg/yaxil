@@ -23,7 +23,6 @@ import xml.etree.ElementTree as etree
 import yaxil.commons as commons
 import yaxil.functools as functools
 from .session import Session
-from . import __version__
 from .exceptions import (AuthError, MultipleAccessionError,  NoAccessionError,
                          AccessionError, DownloadError, ResultSetError,
                          ScanSearchError, EQCNotFoundError, RestApiError,
@@ -54,9 +53,6 @@ XnatAuth = col.namedtuple("XnatAuth", [
 Container to hold XNAT authentication information. Fields include the ``url``,
 ``username``, and ``password``.
 '''
-
-def version():
-    return __version__.__version__
 
 def test_auth(auth):
     '''
@@ -744,9 +740,9 @@ srscans.columns = {
     "subject_label": "subject_label",
     "subject_project": "subject_project",
     "xnat:imagescandata/id": "id",
-    "xnat:srscandata/quality": "quality",
-    "xnat:srscandata/note": "note",
-    "xnat:srscandata/type": "type"
+    "xnat:imagescandata/quality": "quality",
+    "xnat:imagescandata/note": "note",
+    "xnat:imagescandata/type": "type"
 }
 
 def scscans(auth, label=None, scan_ids=None, project=None, experiment=None):
