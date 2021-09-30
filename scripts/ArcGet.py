@@ -178,7 +178,7 @@ def readme(auth, label, project=None):
     scans = yaxil.scans(auth, label=label, project=project)
     for scan in natsorted(scans, key=lambda x: x['id']):
         num = scan['id']
-        series = scan['series_description']
+        series = scan.get('series_description', 'undefined')
         stype = scan['type']
         quality = scan['quality']
         note = scan['note']
