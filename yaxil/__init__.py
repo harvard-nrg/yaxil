@@ -718,9 +718,9 @@ def srscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     }
     _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
-        if not result['xnat:imagescandata/id']:
+        if not result['xnat:srscandata/id']:
             continue
-        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+        if scan_ids == None or result['xnat:srscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(srscans.columns.items()):
                 data[v] = result[k]
@@ -739,10 +739,10 @@ srscans.columns = {
     "xnat:subjectdata/id": "subject_id",
     "subject_label": "subject_label",
     "subject_project": "subject_project",
-    "xnat:imagescandata/id": "id",
-    "xnat:imagescandata/quality": "quality",
-    "xnat:imagescandata/note": "note",
-    "xnat:imagescandata/type": "type"
+    "xnat:srscandata/id": "id",
+    "xnat:srscandata/quality": "quality",
+    "xnat:srscandata/note": "note",
+    "xnat:srscandata/type": "type"
 }
 
 def scscans(auth, label=None, scan_ids=None, project=None, experiment=None):
@@ -759,9 +759,9 @@ def scscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     }
     _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
-        if not result['xnat:imagescandata/id']:
+        if not result['xnat:scscandata/id']:
             continue
-        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+        if scan_ids == None or result['xnat:scscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(scscans.columns.items()):
                 data[v] = result[k]
@@ -780,10 +780,10 @@ scscans.columns = {
     "xnat:subjectdata/id": "subject_id",
     "subject_label": "subject_label",
     "subject_project": "subject_project",
-    "xnat:imagescandata/id": "id",
-    "xnat:imagescandata/quality": "quality",
-    "xnat:imagescandata/note": "note",
-    "xnat:imagescandata/type": "type"
+    "xnat:scscandata/id": "id",
+    "xnat:scscandata/quality": "quality",
+    "xnat:scscandata/note": "note",
+    "xnat:scscandata/type": "type"
 }
 
 def odscans(auth, label=None, scan_ids=None, project=None, experiment=None):
@@ -800,9 +800,9 @@ def odscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     }
     _,result = _get(auth, path, 'json', autobox=True, params=params)
     for result in result['ResultSet']['Result']:
-        if not result['xnat:imagescandata/id']:
+        if not result['xnat:odscandata/id']:
             continue
-        if scan_ids == None or result['xnat:imagescandata/id'] in scan_ids:
+        if scan_ids == None or result['xnat:odscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(odscans.columns.items()):
                 data[v] = result[k]
@@ -821,10 +821,10 @@ odscans.columns = {
     "xnat:subjectdata/id": "subject_id",
     "subject_label": "subject_label",
     "subject_project": "subject_project",
-    "xnat:imagescandata/id": "id",
-    "xnat:imagescandata/quality": "quality",
-    "xnat:imagescandata/note": "note",
-    "xnat:imagescandata/type": "type"
+    "xnat:odscandata/id": "id",
+    "xnat:odscandata/quality": "quality",
+    "xnat:odscandata/note": "note",
+    "xnat:odscandata/type": "type"
 }
 
 def scans(auth, label=None, scan_ids=None, project=None, experiment=None):

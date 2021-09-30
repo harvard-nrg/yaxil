@@ -70,7 +70,9 @@ def proc_func(config, args):
     refs = dict()
     for scan in iterconfig(config, 'func'):
         ref = scan.get('id', None)
-        templ = 'sub-${sub}_ses-${ses}_task-${task}'
+        templ = 'sub-${sub}_ses-${ses}'
+        if 'task' in scan:
+            templ += '_task-${task}'
         if 'acquisition' in scan:
             templ += '_acq-${acquisition}'
         if 'run' in scan:
