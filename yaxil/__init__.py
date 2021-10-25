@@ -1138,6 +1138,85 @@ def storexar_cli(auth, archive):
         raise e
     os.chdir(popd)
 
+def storerest(auth, artifacts_dir, resource_name):
+    '''
+    Store data into XNAT over REST API
+
+    :param auth: XNAT authentication
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param artifacts_dir: Filesystem location of assessor artifacts
+    :type artifacts_dir: str
+    :param resource_name: Resource name
+    :type resource_name: str
+    '''
+    assessment = os.path.join(artifacts_dir, 'assessor', 'assessment.xml')
+    resources = os.path.join(artifacts_dir, 'resources')
+
+    # parseassessor and session ID from assessment.xml
+    with open(assessment) as fo:
+        root = etree.parse(fo)
+    aid = root.find('.').attrib['ID']
+    sid = root.findall('.//{http://nrg.wustl.edu/xnat}imageSession_ID').pop().text
+    logger.debug('assessor id={aid}')
+    logger.debug('session id={sid}')
+
+    baseurl = auth.url.rstrip('/')
+    
+    # create (post) new image assessor
+    url = f'{baseurl}/data/experiments/{sid}/assessors'
+    r = requests.post(
+        url,
+        auth=(auth.username, auth.password),
+        files={
+            'file': open(assessment, 'rb')
+        }
+    )
+    if r.status_code == requests.codes.ok:
+        logger.debug(f'assessment {aid} uploaded successfully')
+    elif r.status_code == requests.codes.conflict:
+        logger.debug(f'assessment {aid} likely already exists')
+        return
+    else:
+       raise StoreRESTError(f'assessment {assessment} failed to upload ({r.status_code})')
+
+    # create (put) new image assessor resource folder
+    url = f'{baseurl}/data/experiments/{sid}/assessors/{aid}/resources/{resource_name}'
+    logger.debug('PUT %s', url)
+    r = requests.put(
+        url,
+        auth=(auth.username, auth.password)
+    )
+    if r.status_code == requests.codes.ok:
+        logger.debug(f'resource folder created {resource_name}')
+    elif r.status_code == requests.codes.conflict:
+        logger.debug(f'resource folder {resource_name} likely already exists')
+    else:
+       raise StoreRESTError(f'could not create resource folder {resource_name} ({r.status_code})')
+
+    # upload (put) image assessor resource files
+    for resource in os.listdir(resources):
+      resource_dir = os.path.join(resources, resource)
+      for f in os.listdir(resource_dir):
+        fullfile = os.path.join(resource_dir, f)
+        url = f'{baseurl}/data/experiments/{sid}/assessors/{aid}/resources/{resource_name}/files/{resource}/{f}'
+        logger.debug('PUT %s', url)
+        r = requests.put(
+          url,
+          auth=(auth.username, auth.password),
+          files={
+            'file': open(fullfile, 'rb')
+          }
+        )
+        if r.status_code == requests.codes.ok:
+            logger.debug(f'file {fullfile} was stored successfully as {resource}')
+        elif r.status_code == requests.codes.conflict:
+            logger.debug(f'resource {resource} likely already exists')
+        else:
+            raise StoreRESTError(f'could not store resource file {fullfile} ({r.status_code})')
+
+class StoreRESTError(Exception):
+    pass
+
 def storexar(auth, archive, verify=True):
     '''
     StoreXAR implementation
