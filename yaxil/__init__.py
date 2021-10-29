@@ -1157,19 +1157,21 @@ def storerest(auth, artifacts_dir, resource_name):
         root = etree.parse(fo)
     aid = root.find('.').attrib['ID']
     sid = root.findall('.//{http://nrg.wustl.edu/xnat}imageSession_ID').pop().text
-    logger.debug('assessor id={aid}')
-    logger.debug('session id={sid}')
+    logger.debug(f'assessor id={aid}')
+    logger.debug(f'session id={sid}')
 
     baseurl = auth.url.rstrip('/')
     
     # create (post) new image assessor
     url = f'{baseurl}/data/experiments/{sid}/assessors'
+    logger.debug(f'posting {assessment} to {url}')
     r = requests.post(
         url,
         auth=(auth.username, auth.password),
         files={
             'file': open(assessment, 'rb')
-        }
+        },
+        allow_redirects=True
     )
     if r.status_code == requests.codes.ok:
         logger.debug(f'assessment {aid} uploaded successfully')
@@ -1184,7 +1186,8 @@ def storerest(auth, artifacts_dir, resource_name):
     logger.debug('PUT %s', url)
     r = requests.put(
         url,
-        auth=(auth.username, auth.password)
+        auth=(auth.username, auth.password),
+        allow_redirects=True
     )
     if r.status_code == requests.codes.ok:
         logger.debug(f'resource folder created {resource_name}')
@@ -1205,7 +1208,8 @@ def storerest(auth, artifacts_dir, resource_name):
           auth=(auth.username, auth.password),
           files={
             'file': open(fullfile, 'rb')
-          }
+          },
+          allow_redirects=True
         )
         if r.status_code == requests.codes.ok:
             logger.debug(f'file {fullfile} was stored successfully as {resource}')
