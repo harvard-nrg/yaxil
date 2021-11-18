@@ -108,9 +108,15 @@ def main():
             else:
                 scan_ids = natsorted(download.keys())
                 logger.info('downloading scans %s', ','.join(scan_ids))
-                sess.download(args.label, scan_ids, project=args.project,
-                              out_dir=args.output_dir, progress=1024**2,
-                              attempts=3, out_format=args.output_format)
+                sess.download(
+                    args.label,
+                    scan_ids,
+                    project=args.project,
+                    out_dir=args.output_dir,
+                    progress=1024**2,
+                    attempts=3,
+                    out_format=args.output_format
+                )
 
 def generate_bids_config(scans):
     config = col.defaultdict(lambda: col.defaultdict(list))
