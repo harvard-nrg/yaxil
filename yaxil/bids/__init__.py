@@ -48,6 +48,7 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base):
     # process func, anat, and fmap
     func_refs = proc_func(config, args)
     anat_refs = proc_anat(config, args)
+    dwi_refs  = proc_dwi(config, args)
     fmap_refs = proc_fmap(config, args, func_refs)
 
 def check_dataset_description(bids_dir, bids_version='1.4.0', ds_type='raw'):
@@ -88,7 +89,7 @@ def proc_func(config, args):
             acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
             direction=scan.get('direction', None),
-            modality=scan.get('modality', None),
+            modality=scan.get('modality', None)
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
@@ -189,6 +190,64 @@ def proc_anat(config, args):
             }
             # write out updated json sidecar
             commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
+    return refs
+
+def proc_dwi(config, args):
+    '''
+    Download diffusion data and convert to BIDS
+    '''
+    refs = dict()
+    for scan in iterconfig(config, 'dwi'):
+        ref = scan.get('id', None)
+        templ = 'sub-${sub}_ses-${ses}'
+        if 'acquisition' in scan:
+            templ += '_acq-${acquisition}'
+        if 'direction' in scan:
+            templ += '_dir-${direction}'
+        if 'run' in scan:
+            templ += '_run-${run}'
+        templ += '_${modality}'
+        templ = string.Template(templ)
+        fbase = templ.safe_substitute(
+            sub=legal.sub('', args.subject),
+            ses=legal.sub('', args.session),
+            acquisition=scan.get('acquisition', None),
+            direction=scan.get('direction', None),
+            run=scan.get('run', None),
+            modality=scan.get('modality', None)
+        )
+        # download data to bids sourcedata directory
+        sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
+        if not os.path.exists(sourcedata_dir):
+            os.makedirs(sourcedata_dir)
+        dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
+        logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
+        # convert to nifti
+        fname = '{0}.nii.gz'.format(fbase)
+        refs[ref] = os.path.join(scan['type'], fname)
+        fullfile = os.path.join(args.bids, scan['type'], fname)
+        logger.info('converting %s to %s', dicom_dir, fullfile)
+        modality = scan.get('modality', None)
+        convert(dicom_dir, fullfile)
+        sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
+        # add xnat source information to json sidecar files
+        logger.debug('adding provenance to %s', sidecar_file)
+        with open(sidecar_file) as fo:
+            sidecarjs = json.load(fo)
+        sidecarjs['DataSource'] = {
+            'application/x-xnat': {
+                'url': args.xnat.url,
+                'project': args.project,
+                'subject': args.subject,
+                'subject_id': args.subject_id,
+                'experiment': args.session,
+                'experiment_id': args.session_id,
+                'scan': scan['scan']
+            }
+        }
+        # write out updated json sidecar
+        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
 def proc_fmap(config, args, func_refs=None):
