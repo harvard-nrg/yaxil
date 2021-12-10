@@ -22,18 +22,6 @@ Most of the time you'll want to use `pip`
 pip install yaxil
 ```
 
-Once that's done, you need to create an ~/.xnat_auth file, and you should be ready to go!
-
-```
-<xnat>
-    <cbscentral version="1.5">
-    <url>https://cbscentral.rc.fas.harvard.edu</url>
-    <username>MJbball1991</username>
-    <password>DaBullsDaBullsDaBullsDaBulls</password>
-    </cbscentral>
-</xnat>
-```
-
 ## Documentation
 Full documentation can be found at <http://yaxil.readthedocs.io/>.
 
