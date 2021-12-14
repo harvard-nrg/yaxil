@@ -417,7 +417,11 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     backoff = 10
     for _ in range(attempts):
         logger.debug("issuing http request %s", url)
-        r = requests.get(url, stream=True, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+
+        session = requests.Session()
+        session.keep_alive = True
+        r = session.get(url, stream=True,
+                        auth=basicauth(auth), verify=CHECK_CERTIFICATE)
         logger.debug("response headers %s", r.headers)
         if r.status_code == requests.codes.ok:
             break
