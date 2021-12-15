@@ -11,6 +11,7 @@ import sqlite3
 import zipfile
 import logging
 import requests
+from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 import itertools
 import getpass as gp
 import tempfile as tf
@@ -417,11 +418,11 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     backoff = 10
     for _ in range(attempts):
         logger.debug("issuing http request %s", url)
-
-        session = requests.Session()
-        session.keep_alive = True
-        r = session.get(url, stream=True,
-                        auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+        s = requests.Session()
+        keep_alive = TCPKeepAliveAdapter(idle=120, count=20, interval=30)
+        s.mount('https://', keep_alive)
+        r = s.get(url, stream=True,
+                  auth=basicauth(auth), verify=CHECK_CERTIFICATE)
         logger.debug("response headers %s", r.headers)
         if r.status_code == requests.codes.ok:
             break
