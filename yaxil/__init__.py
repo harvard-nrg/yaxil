@@ -728,8 +728,6 @@ def scscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     aid = accession(auth, label, project)
     path = f'/data/experiments/{aid}/scans'
     params = {
-        'xsiType': 'xnat:mrSessionData',
-        'xnat:mrSessionData/ID': aid,
         'columns': ','.join(scscans.columns.keys())
     }
     _,result = _get(auth, path, 'json', autobox=True, params=params)
