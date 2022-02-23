@@ -167,6 +167,15 @@ def proc_anat(config, args):
             expr = ffbase.replace('%r', '*') + '.json'
             logger.debug('globbing for %s', expr)
             sidecar_files = glob.glob(expr)
+        elif modality == 'T2vnav':
+            fullfile = fullfile.replace('_T2vnav', '_split-%r_T2vnav')
+            for f in glob.glob(os.path.join(dicom_dir, '*.dcm')):
+                logger.debug('converting single file %s to %s', f, fullfile)
+                convert(f, fullfile, single_file=True)
+            ffbase = re.sub('.nii(.gz)?', '', fullfile)
+            expr = ffbase.replace('%r', '*') + '.json'
+            logger.debug('globbing for %s', expr)
+            sidecar_files = glob.glob(expr)
         else:
             convert(dicom_dir, fullfile)
             sidecar_files = [
