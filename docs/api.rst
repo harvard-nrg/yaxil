@@ -1,30 +1,53 @@
-.. _api:
-
-YAXIL API
-=========
+API Reference
+=============
 .. autosummary::
    :toctree: DIRNAME
 
 .. module:: yaxil
 
-Functions
----------
-.. autofunction:: auth
+Authentication
+--------------
 .. autofunction:: test_auth
+.. autofunction:: auth2
+.. autofunction:: auth
+
+Session
+-------
 .. autofunction:: session
+
+Subjects
+--------
 .. autofunction:: subjects
+
+Experiments
+-----------
 .. autofunction:: experiments
-.. autofunction:: accession
-.. autofunction:: extendedboldqc
-.. autofunction:: scans
+
+Scans
+-----------------------
 .. autofunction:: scansearch
+.. autofunction:: scans
 .. autofunction:: download
+
+Miscellaneous
+-------------------------
+.. autofunction:: accession
 .. autofunction:: has
 .. autofunction:: exists
-.. autofunction:: storexar
+.. autofunction:: get
+.. autofunction:: storerest
 
-Classes
--------
+Assessments: neuroinfo
+----------------------
+.. autofunction:: yaxil.assessments.neuroinfo.session
+.. autofunction:: yaxil.assessments.neuroinfo.boldqc
+.. autofunction:: yaxil.assessments.neuroinfo.anatqc
+
+Lower-Level Classes
+-------------------
 .. autoclass:: yaxil.XnatAuth
+.. autoclass:: yaxil.Format
 .. autoclass:: yaxil.Experiment
 .. autoclass:: yaxil.Subject
+
+

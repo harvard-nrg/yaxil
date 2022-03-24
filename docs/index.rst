@@ -6,12 +6,10 @@
 YAXIL: yet another XNAT interface library
 =========================================
 
-Yaxil is an XNAT interface library that started a long time ago in a galaxy far, 
-far away. It works with Python 2 and 3 and XNAT 1.4 through 1.7. This 
-documentation covers all of the functions and classes in YAXIL and examples 
-to help you get going.
+Yaxil is an XNAT interface library that started a long time ago in a galaxy 
+far, far away. It works with Python 3 and XNAT 1.4 through 1.8.
 
-Here is a very basic example of YAXIL in action
+Here's a basic example of YAXIL in action
 
 .. code-block:: python
 
@@ -33,24 +31,23 @@ Here is a very basic example of YAXIL in action
             outdir = os.path.join(subject.label, experiment.label, sid)
             sess.download(experiment.label, [sid], out_dir=outdir)
 
-Huzzah! There are many more functions for accessing your scan metadata, 
-experiment metadata, subject metadata, and more. Head over to the API 
-documentation for more examples.
+Huzzah! There are many more functions and tools for accessing your subject, 
+experiment, and scan metadata. Head over to the API reference for more.
 
-The API Documentation / Guide
------------------------------
+API Reference
+-------------
 
-If you are looking for information on a specific function, read this
+If you're looking for information on a specific API function, look no further
 
 .. toctree::
    :maxdepth: 2
 
    api
 
-ArcGet.py Guide
----------------
+ArcGet.py
+---------
 
-If you're looking for information about ``ArcGet.py`` look no further
+If you're looking for information about ``ArcGet.py``, you're going to like this
 
 .. toctree::
    :maxdepth: 2
@@ -58,9 +55,10 @@ If you're looking for information about ``ArcGet.py`` look no further
    arcget
 
 xnat_auth
----------------
+---------
 
-Command line tool that helps to set up ~/.xnat_auth file used by ``ArcGet.py``
+Here's a quick and dirty command line tool to help you set up an 
+``~/.xnat_auth`` file
 
 .. toctree::
    :maxdepth: 2

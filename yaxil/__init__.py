@@ -22,12 +22,12 @@ import xml.etree.ElementTree as etree
 
 import yaxil.commons as commons
 import yaxil.functools as functools
-from .session import Session
-from .exceptions import (AuthError, MultipleAccessionError,  NoAccessionError,
-                         AccessionError, DownloadError, ResultSetError,
-                         ScanSearchError, EQCNotFoundError, RestApiError,
-                         AutoboxError, NoExperimentsError, NoSubjectsError,
-                         CommandNotFoundError)
+from yaxil.session import Session
+from yaxil.exceptions import ( AuthError, MultipleAccessionError,  NoAccessionError,
+                               AccessionError, DownloadError, ResultSetError,
+                               ScanSearchError, EQCNotFoundError, RestApiError,
+                               AutoboxError, NoExperimentsError, NoSubjectsError,
+                               CommandNotFoundError )
 
 # Whether to verify SSL certificates. Primarily of use during testing.
 CHECK_CERTIFICATE = True
@@ -37,12 +37,20 @@ logging.getLogger("requests").setLevel(logging.WARNING)
 
 class Format(object):
     '''
-    A container to hold possible XNAT response formats: Format.JSON,
-    Format.XML, and Format.CSV.
+    A container to hold possible XNAT response formats ``Format.JSON``,
+    ``Format.XML``, and ``Format.CSV``.
     '''
     JSON  = "json"
     XML   = "xml"
     CSV   = "csv"
+
+class Response:
+    '''
+    Container for response content
+    '''
+    def __init__(self, url, content):
+        self.url = url
+        self.content = content
 
 XnatAuth = col.namedtuple("XnatAuth", [
     "url",
@@ -56,10 +64,17 @@ Container to hold XNAT authentication information. Fields include the ``url``,
 
 def test_auth(auth):
     '''
-    Validate auth input against XNAT.
+    Validate auth object against XNAT
+
+    Example:
+        >>> import yaxil
+        >>> auth = yaxil.auth('doctest')
+        >>> yaxil.test_auth(auth)
+        True
     '''
-    url = '{0}/data/version'.format(auth.url.rstrip('/'))
-    r = requests.get(url, auth=basicauth(auth))
+    baseurl = auth.url.rstrip('/')
+    url = f'{baseurl}/data/projects'
+    r = requests.get(url, auth=basicauth(auth), params={ 'columns': 'ID' })
     if r.status_code == requests.codes.UNAUTHORIZED:
         return False
     return True
@@ -75,21 +90,16 @@ def basicauth(auth):
 @contextmanager
 def session(auth):
     '''
-    Create a session context to avoid explicitly passing authentication to
+    Create a session context to avoid passing `auth` to
     every function.
 
     Example:
-
-    .. code-block:: python
-
-        import yaxil
-
-        auth = yaxil.XnatAuth(url='...', username='...', password='...')
-
-        with yaxil.session(auth) as sess:
-            aid = sess.accession('AB1234C')
-            experiment = sess.experiment('AB1234C')
-            sess.download('AB1234C', [1,3,14], out_dir='./dicomz')
+        >>> import yaxil
+        >>> auth = yaxil.auth('doctest')
+        >>> with yaxil.session(auth) as ses:
+        ...   aid = ses.accession('TestSession01')
+        ...   print(aid)
+        XNAT_E...
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -100,6 +110,20 @@ def session(auth):
     yield sess
 
 def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth'):
+    '''
+    Create authentication object from an ``xnat_auth`` file, function arguments, 
+    or environment variables (``XNAT_HOST``, ``XNAT_USER``, and ``XNAT_PASS``), 
+    in that order
+
+    Example:
+        >>> import os
+        >>> import yaxil
+        >>> os.environ['XNAT_HOST'] = 'https://xnat.example.com'
+        >>> os.environ['XNAT_USER'] = 'username'
+        >>> os.environ['XNAT_PASS'] = '*****'
+        >>> yaxil.auth2()
+        XnatAuth(url='https://xnat.example.com', username='username', password='*****')
+    '''
     result = tuple()
     # First, look for authentication data in ~/.xnat_auth
     if alias:
@@ -134,9 +158,8 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.auth('xnatastic')
-        >>> auth.url, auth.username, auth.password
-        ('https://www.xnatastic.org/', 'username', '********')
+        >>> yaxil.auth('doctest')
+        XnatAuth(url='...', username='...', password='...')
 
     :param alias: XNAT alias
     :type alias: str
@@ -201,7 +224,7 @@ Subject = col.namedtuple('Subject', [
 ])
 '''
 Container to hold XNAT Subject information. Fields include the Subject URI
-(``uri``), Accession ID (``id``), Project (``project``), and Label (``label``).
+``uri``, Accession ID ``id``, Project ``project``, and Label ``label``.
 '''
 
 def subjects(auth, label=None, project=None):
@@ -210,10 +233,11 @@ def subjects(auth, label=None, project=None):
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.subjects(auth, 'AB1234C')
-        Subject(uri=u'/data/experiments/XNAT_S0001', label=u'AB1234C', id=u'XNAT_S0001',
-            project=u'MyProject')
+        >>> auth = yaxil.auth('doctest')
+        >>> for subject in yaxil.subjects(auth, project='TestProject01'):
+        ...   print(subject)
+        Subject(uri='/data/subjects/XNAT_S...', label='...',
+            id='XNAT_S...', project='TestProject01')
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -271,9 +295,9 @@ Experiment = col.namedtuple('Experiment', [
 ])
 '''
 Container to hold XNAT Experiment information. Fields include the Experiment URI
-(``uri``), Accession ID (``id``), Project (``project``), Label (``label``),
-Subject Accession ID (``subject_id``), Subject label (``subject_label``), and
-archived date (``archived_date``).
+``uri``, Accession ID ``id``, Project ``project``, Label ``label``, Subject 
+Accession ID ``subject_id``, Subject label ``subject_label``, and archive date 
+``archived_date``.
 '''
 
 def experiments(auth, label=None, project=None, subject=None, daterange=None):
@@ -282,10 +306,12 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.experiment(auth, 'AB1234C')
-        Experiment(uri=u'/data/experiments/XNAT_E0001', label=u'AB1234C', id=u'XNAT_E0001',
-            project=u'MyProject', subject_id=u'XNAT_S0001', subject_label='ABC')
+        >>> auth = yaxil.auth('doctest')
+        >>> for experiment in yaxil.experiments(auth, 'TestSession01'):
+        ...   print(experiment)
+        Experiment(uri='...', label='...', id='...', project='...', 
+          subject_id='...', subject_label='...', archived_date='...')
+        >>>
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -352,13 +378,13 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
 @functools.lru_cache
 def accession(auth, label, project=None):
     '''
-    Get the Accession ID for any Experiment label.
+    Get the Accession ID for any Experiment.
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.accession(auth, 'AB1234C')
-        u'XNAT_E00001'
+        >>> auth = yaxil.auth('doctest')
+        >>> yaxil.accession(auth, 'TestSession01')
+        'XNAT_E...'
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -382,8 +408,8 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.download(auth, 'AB1234C', ['1', '2'], out_dir='./data')
+        >>> auth = yaxil.auth('doctest')
+        >>> yaxil.download(auth, 'TestSession01', ['1', '2'], out_dir='./data')
 
     :param auth: XNAT authentication object
     :type auth: :mod:`yaxil.XnatAuth`
@@ -560,14 +586,21 @@ def scansearch(auth, label, filt, project=None, aid=None):
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
+        >>> auth = yaxil.auth('doctest')
         >>> query = {
-        ...   'eor1': "note LIKE %EOR1%",
-        ...   'eor2': "note LIKE %EOR2%",
-        ...   'mpr':  "series_description='T1_MEMPRAGE RMS' OR note LIKE %ANAT%"
+        ...   'sr': 'note LIKE "%Structured Report%"',
+        ...   'anat': 'series_description="t1_mpr_1mm_p2_pos50" OR note LIKE "%ANAT%"'
         ... }
-        >>> yaxil.scansearch(auth, 'AB1234C', query)
-        {"mpr": [4], "eor1": [13], "eor2": [14]}
+        >>> result = yaxil.scansearch(auth, 'TestSession01', query)
+        >>> print(json.dumps(result, indent=2))
+        {
+          "sr": [
+            "99"
+          ],
+          "anat": [
+            "4"
+          ]
+        }
 
     :param auth: XNAT authentication object
     :type auth: :mod:`yaxil.XnatAuth`
@@ -615,29 +648,6 @@ def scansearch(auth, label, filt, project=None, aid=None):
     return result
 
 def mrscans(auth, label=None, scan_ids=None, project=None, experiment=None):
-    '''
-    Get scan information for a MR Session as a sequence of dictionaries.
-
-    Example:
-        >>> import yaxil
-        >>> import json
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> for scan in yaxil.scans2(auth, 'AB1234C'):
-        ...     print(json.dumps(scan, indent=2))
-
-    :param auth: XNAT authentication object
-    :type auth: :mod:`yaxil.XnatAuth`
-    :param label: XNAT MR Session label
-    :type label: str
-    :param scan_ids: Scan numbers to return
-    :type scan_ids: list
-    :param project: XNAT MR Session project
-    :type project: str
-    :param experiment: YAXIL Experiment
-    :type experiment: :mod:`yaxil.Experiment`
-    :returns: Generator of scan data dictionaries
-    :rtype: dict
-    '''
     if experiment and (label or project):
         raise ValueError('cannot supply experiment with label or project')
     if experiment:
@@ -789,6 +799,27 @@ odscans.columns = {
 }
 
 def scans(auth, label=None, scan_ids=None, project=None, experiment=None):
+    '''
+    Get scan information for a MR Session as a sequence of dictionaries
+
+    Example:
+        >>> import json
+        >>> import yaxil
+        >>> auth = yaxil.auth('doctest')
+        >>> for scan in yaxil.scans(auth, 'TestSession01'):
+        ...   print(json.dumps(scan, indent=2))
+        {
+          "ID": "...",
+          "date_archived": "...",
+          ...
+        }
+        {
+          "ID": "...",
+          "date_archived": "...",
+          ...
+        }
+        ...
+    '''
     if experiment and (label or project):
         raise ValueError('cannot supply experiment with label or project')
     if experiment:
@@ -867,128 +898,9 @@ def __experiment_details(auth, aid):
       'field_strength': result['fieldStrength']
     }
 
-def extendedboldqc(auth, label, scan_ids=None, project=None, aid=None):
-    '''
-    Get ExtendedBOLDQC data as a sequence of dictionaries.
-
-    Example:
-        >>> import yaxil
-        >>> import json
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> for eqc in yaxil.extendedboldqc2(auth, 'AB1234C')
-        ...     print(json.dumps(eqc, indent=2))
-
-    :param auth: XNAT authentication object
-    :type auth: :mod:`yaxil.XnatAuth`
-    :param label: XNAT MR Session label
-    :type label: str
-    :param scan_ids: Scan numbers to return
-    :type scan_ids: list
-    :param project: XNAT MR Session project
-    :type project: str
-    :param aid: XNAT Accession ID
-    :type aid: str
-    :returns: Generator of scan data dictionaries
-    :rtype: :mod:`dict`
-    '''
-    if not aid:
-        aid = accession(auth, label, project)
-    path = '/data/experiments'
-    params = {
-        'xsiType': 'neuroinfo:extendedboldqc',
-        'columns': ','.join(extendedboldqc.columns.keys())
-    }
-    if project:
-        params['project'] = project
-    params['xnat:mrSessionData/ID'] = aid
-    _,result = _get(auth, path, 'json', autobox=True, params=params)
-    for result in result['ResultSet']['Result']:
-        if scan_ids == None or result['neuroinfo:extendedboldqc/scan/scan_id'] in scan_ids:
-            data = dict()
-            for k,v in iter(extendedboldqc.columns.items()):
-                data[v] = result[k]
-            yield data
-extendedboldqc.columns = {
-    "xnat:mrsessiondata/id": "session_id",
-    "xnat:mrsessiondata/label": "session_label",
-    "xnat:mrsessiondata/project": "project",
-    "subject_label": "subject_label",
-    "xnat:subjectdata/id": "subject_id",
-    "neuroinfo:extendedboldqc/id": "id",
-    "neuroinfo:extendedboldqc/scan/scan_id": "scan_id",
-    "neuroinfo:extendedboldqc/pipeline/status": "status",
-    "neuroinfo:extendedboldqc/scan/n_vols": "nvols",
-    "neuroinfo:extendedboldqc/scan/skip": "skip",
-    "neuroinfo:extendedboldqc/scan/qc_thresh": "mask_threshold",
-    "neuroinfo:extendedboldqc/scan/qc_nvox": "nvoxels",
-    "neuroinfo:extendedboldqc/scan/qc_mean": "mean",
-    "neuroinfo:extendedboldqc/scan/qc_max": "max",
-    "neuroinfo:extendedboldqc/scan/qc_min": "min",
-    "neuroinfo:extendedboldqc/scan/qc_stdev": "stdev",
-    "neuroinfo:extendedboldqc/scan/qc_ssnr": "ssnr",
-    "neuroinfo:extendedboldqc/scan/qc_vsnr": "vsnr",
-    "neuroinfo:extendedboldqc/scan/qc_slope": "slope",
-    "neuroinfo:extendedboldqc/scan/mot_n_tps": "mot_n_tps",
-    "neuroinfo:extendedboldqc/scan/mot_rel_x_sd": "mot_rel_x_sd",
-    "neuroinfo:extendedboldqc/scan/mot_rel_x_max": "mot_rel_x_max",
-    "neuroinfo:extendedboldqc/scan/mot_rel_x_1mm": "mot_rel_x_1mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_x_5mm": "mot_rel_x_5mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_y_mean": "mot_rel_y_mean",
-    "neuroinfo:extendedboldqc/scan/mot_rel_y_sd": "mot_rel_y_sd",
-    "neuroinfo:extendedboldqc/scan/mot_rel_y_max": "mot_rel_y_max",
-    "neuroinfo:extendedboldqc/scan/mot_rel_y_1mm": "mot_rel_y_1mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_y_5mm": "mot_rel_y_5mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_z_mean": "mot_rel_z_mean",
-    "neuroinfo:extendedboldqc/scan/mot_rel_z_sd": "mot_rel_z_sd",
-    "neuroinfo:extendedboldqc/scan/mot_rel_z_max": "mot_rel_z_max",
-    "neuroinfo:extendedboldqc/scan/mot_rel_z_1mm": "mot_rel_z_1mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_z_5mm": "mot_rel_z_5mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_mean": "mot_rel_xyz_mean",
-    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_sd": "mot_rel_xyz_sd",
-    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_max": "mot_rel_xyz_max",
-    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_1mm": "mot_rel_xyz_1mm",
-    "neuroinfo:extendedboldqc/scan/mot_rel_xyz_5mm": "mot_rel_xyz_5mm",
-    "neuroinfo:extendedboldqc/scan/rot_rel_x_mean": "rot_rel_x_mean",
-    "neuroinfo:extendedboldqc/scan/rot_rel_x_sd": "rot_rel_x_sd",
-    "neuroinfo:extendedboldqc/scan/rot_rel_x_max": "rot_rel_x_max",
-    "neuroinfo:extendedboldqc/scan/rot_rel_y_mean": "rot_rel_y_mean",
-    "neuroinfo:extendedboldqc/scan/rot_rel_y_sd": "rot_rel_y_sd",
-    "neuroinfo:extendedboldqc/scan/rot_rel_y_max": "rot_rel_y_max",
-    "neuroinfo:extendedboldqc/scan/rot_rel_z_mean": "rot_rel_z_mean",
-    "neuroinfo:extendedboldqc/scan/rot_rel_z_sd": "rot_rel_z_sd",
-    "neuroinfo:extendedboldqc/scan/rot_rel_z_max": "rot_rel_z_max",
-    "neuroinfo:extendedboldqc/scan/mot_abs_x_mean": "mot_abs_x_mean",
-    "neuroinfo:extendedboldqc/scan/mot_abs_x_sd": "mot_abs_x_sd",
-    "neuroinfo:extendedboldqc/scan/mot_abs_x_max": "mot_abs_x_max",
-    "neuroinfo:extendedboldqc/scan/mot_abs_y_mean": "mot_abs_y_mean",
-    "neuroinfo:extendedboldqc/scan/mot_abs_y_sd": "mot_abs_y_sd",
-    "neuroinfo:extendedboldqc/scan/mot_abs_y_max": "mot_abs_y_max",
-    "neuroinfo:extendedboldqc/scan/mot_abs_z_mean": "mot_abs_z_mean",
-    "neuroinfo:extendedboldqc/scan/mot_abs_z_sd": "mot_abs_z_sd",
-    "neuroinfo:extendedboldqc/scan/mot_abs_z_max": "mot_abs_z_max",
-    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_mean": "mot_abs_xyz_mean",
-    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_sd": "mot_abs_xyz_sd",
-    "neuroinfo:extendedboldqc/scan/mot_abs_xyz_max": "mot_abs_xyz_max",
-    "neuroinfo:extendedboldqc/scan/rot_abs_x_mean": "rot_abs_x_mean",
-    "neuroinfo:extendedboldqc/scan/rot_abs_x_sd": "rot_abs_x_sd",
-    "neuroinfo:extendedboldqc/scan/rot_abs_x_max": "rot_abs_x_max",
-    "neuroinfo:extendedboldqc/scan/rot_abs_y_mean": "rot_abs_y_mean",
-    "neuroinfo:extendedboldqc/scan/rot_abs_y_sd": "rot_abs_y_sd",
-    "neuroinfo:extendedboldqc/scan/rot_abs_y_max": "rot_abs_y_max",
-    "neuroinfo:extendedboldqc/scan/rot_abs_z_mean": "rot_abs_z_mean",
-    "neuroinfo:extendedboldqc/scan/rot_abs_z_sd": "rot_abs_z_sd",
-    "neuroinfo:extendedboldqc/scan/rot_abs_z_max": "rot_abs_z_max"
-}
-
 def _get(auth, path, fmt, autobox=True, params=None):
     '''
     Issue a GET request to the XNAT REST API and box the response content.
-
-    Example:
-        >>> import yaxil
-        >>> from yaxil import Format
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.get(auth, '/data/experiments', Format.JSON)
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -1018,6 +930,45 @@ def _get(auth, path, fmt, autobox=True, params=None):
         return r.url,_autobox(r.text, fmt)
     else:
         return r.url,r.content
+
+def get(auth, path, autobox=False, fmt=None, params=None):
+    '''
+    Make a GET request to XNAT and optionally autobox the 
+    response content. Autoboxing will convert the response 
+    content to an ``lxml.etree`` object for XML, ``dict`` 
+    for JSON, or ``csv.reader`` for CSV.
+
+    Example::
+        >>> import yaxil
+        >>> auth = yaxil.auth('doctest')
+        >>> path = '/data/config'
+        >>> yaxil.get(auth, path).content
+        b'...'
+    '''
+    if not params:
+        params = dict()
+    urlprefix = auth.url.rstrip('/')
+    path = path.lstrip('/')
+    url = f'{urlprefix}/{path}'
+    if fmt:
+        params['format'] = fmt
+    logger.debug(f'GET {url}')
+    logger.debug(f'query parameters {params}')
+    r = requests.get(
+        url,
+        params=params,
+        auth=basicauth(auth),
+        verify=CHECK_CERTIFICATE
+    )
+    if r.status_code != requests.codes.ok:
+        raise RestApiError(f'response not ok ({r.status_code}) from {r.url}')
+    if not r.content:
+        raise RestApiError(f'response is empty from {r.url}')
+    if autobox:
+        return Response(url=r.url, content=_autobox(r.text, fmt))
+    else:
+        return Response(url=r.url, content=r.content)
+
 
 def _autobox(content, format):
     '''
@@ -1083,8 +1034,9 @@ def has(auth, xsitype, project=None):
 
     Example:
         >>> import yaxil
-        >>> auth = yaxil.XnatAuth(url='...', username='...', password='...')
-        >>> yaxil.has(auth, 'neuroinfo:extendedboldqc', project='MyProject')
+        >>> auth = yaxil.auth('doctest')
+        >>> yaxil.has(auth, 'neuroinfo:anatqc', project='TestProject01')
+        True
 
     :param auth: XNAT authentication
     :type auth: :mod:`yaxil.XnatAuth`
@@ -1309,3 +1261,7 @@ def storexar(auth, archive, verify=True):
 
 class StoreXARError(Exception):
     pass
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod(optionflags=doctest.ELLIPSIS|doctest.NORMALIZE_WHITESPACE)

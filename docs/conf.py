@@ -89,7 +89,7 @@ html_theme_options = {
     'github_user': 'harvard-nrg',
     'github_repo': 'yaxil',
     'github_banner': True,
-    'show_related': False
+    'show_related': False,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,

@@ -116,7 +116,7 @@ downloaded and converted to a proper BIDS structure
 
 .. code-block:: python
 
-  ArcGet.py -a xnatastic -s LABEL -c bids.yaml -o ./bids
+  ArcGet.py -a xnatastic -s LABEL -c bids.yaml -f bids -o ./bids
 
 Huzzah!
 
