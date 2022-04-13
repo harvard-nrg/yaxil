@@ -107,7 +107,7 @@ def proc_func(config, args):
         # add xnat source information to json sidecar
         sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
         with open(sidecar_file) as fo:
-            sidecarjs = json.load(fo)
+            sidecarjs = json.load(fo, strict=False)
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
@@ -185,7 +185,7 @@ def proc_anat(config, args):
         for sidecar_file in sidecar_files:
             logger.debug('adding provenance to %s', sidecar_file)
             with open(sidecar_file) as fo:
-                sidecarjs = json.load(fo)
+                sidecarjs = json.load(fo, strict=False)
             sidecarjs['DataSource'] = {
                 'application/x-xnat': {
                     'url': args.xnat.url,
@@ -243,7 +243,7 @@ def proc_dwi(config, args):
         # add xnat source information to json sidecar files
         logger.debug('adding provenance to %s', sidecar_file)
         with open(sidecar_file) as fo:
-            sidecarjs = json.load(fo)
+            sidecarjs = json.load(fo, strict=False)
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
@@ -302,7 +302,7 @@ def proc_fmap(config, args, func_refs=None):
         # add xnat source information to json sidecar
         sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
         with open(sidecar_file, 'r') as fo:
-            sidecarjs = json.load(fo)
+            sidecarjs = json.load(fo, strict=False)
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
