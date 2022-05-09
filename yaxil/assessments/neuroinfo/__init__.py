@@ -159,6 +159,152 @@ boldqc.columns = {
     'neuroinfo:boldqc/manual/overall': 'manual_overall'
 }
 
+def t2qc(auth, label, scan_ids=None, project=None, aid=None):
+    '''
+    Get T2QC data as a sequence of dictionaries.
+
+    Example:
+        >>> import json
+        >>> import yaxil.assessments.neuroinfo as neuroinfo
+        >>> auth = yaxil.auth('doctest')
+        >>> for qc in neuroinfo.t2qc(auth, 'TestSession01'):
+        ...   print(json.dumps(qc, indent=2))
+        {
+          "id": "TestSession01_T2w_30_T2QC",
+          ...
+        }
+
+    :param auth: XNAT authentication object
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param label: XNAT MR Session label
+    :type label: str
+    :param scan_ids: Scan numbers to include
+    :type scan_ids: list
+    :param project: XNAT MR Session project
+    :type project: str
+    :param aid: XNAT MR Session Accession ID
+    :type aid: str
+    :returns: Generator of T2QC data dictionaries
+    :rtype: :mod:`dict`
+    '''
+    if not aid:
+        aid = yaxil.accession(auth, label, project)
+    experiment_details = yaxil.__experiment_details(auth, aid)
+    path = '/data/experiments'
+    params = {
+        'xsiType': 'neuroinfo:t2qc',
+        'columns': ','.join(t2qc.columns.keys())
+    }
+    if project:
+        params['project'] = project
+    params['xnat:mrSessionData/ID'] = aid
+    _,result = yaxil._get(auth, path, 'json', autobox=True, params=params)
+    for result in result['ResultSet']['Result']:
+        if scan_ids == None or result['neuroinfo:t2qc/t2w_scan_id'] in scan_ids:
+            data = dict()
+            for k,v in iter(t2qc.columns.items()):
+                data[v] = result[k]
+            files = __files(auth, result['neuroinfo:t2qc/id'])
+            data.update(experiment_details)
+            data['files'] = files
+            yield data
+t2qc.columns = {
+    'neuroinfo:t2qc/id': 'ID',
+    'neuroinfo:t2qc/id': 'id',
+    'neuroinfo:t2qc/date': 'date',
+    'neuroinfo:t2qc/time': 'time',
+    'neuroinfo:t2qc/imagesession_id': 'session_id',
+    'neuroinfo:t2qc/t2w_scan_id': 't2w_scan_id',
+    'neuroinfo:t2qc/vnav_scan_id': 'vnav_scan_id',
+    'neuroinfo:t2qc/session_label': 'session_label',
+    'neuroinfo:t2qc/mriqc/cjv': 'mriqc_cjv',
+    'neuroinfo:t2qc/mriqc/cnr': 'mriqc_cnr',
+    'neuroinfo:t2qc/mriqc/efc': 'mriqc_efc',
+    'neuroinfo:t2qc/mriqc/fber': 'mriqc_fber',
+    'neuroinfo:t2qc/mriqc/fwhm_avg': 'mriqc_fwhm_avg',
+    'neuroinfo:t2qc/mriqc/fwhm_x': 'mriqc_fwhm_x',
+    'neuroinfo:t2qc/mriqc/fwhm_y': 'mriqc_fwhm_y',
+    'neuroinfo:t2qc/mriqc/fwhm_z': 'mriqc_fwhm_z',
+    'neuroinfo:t2qc/mriqc/icvs_csf': 'mriqc_icvs_csf',
+    'neuroinfo:t2qc/mriqc/icvs_gm': 'mriqc_icvs_gm',
+    'neuroinfo:t2qc/mriqc/icvs_wm': 'mriqc_icvs_wm',
+    'neuroinfo:t2qc/mriqc/inu_med': 'mriqc_inu_med',
+    'neuroinfo:t2qc/mriqc/inu_range': 'mriqc_inu_range',
+    'neuroinfo:t2qc/mriqc/qi_1': 'mriqc_qi_1',
+    'neuroinfo:t2qc/mriqc/qi_2': 'mriqc_qi_2',
+    'neuroinfo:t2qc/mriqc/rpve_csf': 'mriqc_rpve_csf',
+    'neuroinfo:t2qc/mriqc/rpve_gm': 'mriqc_rpve_gm',
+    'neuroinfo:t2qc/mriqc/rpve_wm': 'mriqc_rpve_wm',
+    'neuroinfo:t2qc/mriqc/size_x': 'mriqc_size_x',
+    'neuroinfo:t2qc/mriqc/size_y': 'mriqc_size_y',
+    'neuroinfo:t2qc/mriqc/size_z': 'mriqc_size_z',
+    'neuroinfo:t2qc/mriqc/snr_csf': 'mriqc_snr_csf',
+    'neuroinfo:t2qc/mriqc/snr_gm': 'mriqc_snr_gm',
+    'neuroinfo:t2qc/mriqc/snr_total': 'mriqc_snr_total',
+    'neuroinfo:t2qc/mriqc/snr_wm': 'mriqc_snr_wm',
+    'neuroinfo:t2qc/mriqc/snrd_csf': 'mriqc_snrd_csf',
+    'neuroinfo:t2qc/mriqc/snrd_gm': 'mriqc_snrd_gm',
+    'neuroinfo:t2qc/mriqc/snrd_total': 'mriqc_snrd_total',
+    'neuroinfo:t2qc/mriqc/snrd_wm': 'mriqc_snrd_wm',
+    'neuroinfo:t2qc/mriqc/spacing_x': 'mriqc_spacing_x',
+    'neuroinfo:t2qc/mriqc/spacing_y': 'mriqc_spacing_y',
+    'neuroinfo:t2qc/mriqc/spacing_z': 'mriqc_spacing_z',
+    'neuroinfo:t2qc/mriqc/summary_bg_k': 'mriqc_summary_bg_k',
+    'neuroinfo:t2qc/mriqc/summary_bg_mad': 'mriqc_summary_bg_mad',
+    'neuroinfo:t2qc/mriqc/summary_bg_mean': 'mriqc_summary_bg_mean',
+    'neuroinfo:t2qc/mriqc/summary_bg_median': 'mriqc_summary_bg_median',
+    'neuroinfo:t2qc/mriqc/summary_bg_n': 'mriqc_summary_bg_n',
+    'neuroinfo:t2qc/mriqc/summary_bg_p05': 'mriqc_summary_bg_p05',
+    'neuroinfo:t2qc/mriqc/summary_bg_p95': 'mriqc_summary_bg_p95',
+    'neuroinfo:t2qc/mriqc/summary_bg_stdv': 'mriqc_summary_bg_stdv',
+    'neuroinfo:t2qc/mriqc/summary_csf_k': 'mriqc_summary_csf_k',
+    'neuroinfo:t2qc/mriqc/summary_csf_mad': 'mriqc_summary_csf_mad',
+    'neuroinfo:t2qc/mriqc/summary_csf_mean': 'mriqc_summary_csf_mean',
+    'neuroinfo:t2qc/mriqc/summary_csf_median': 'mriqc_summary_csf_median',
+    'neuroinfo:t2qc/mriqc/summary_csf_n': 'mriqc_summary_csf_n',
+    'neuroinfo:t2qc/mriqc/summary_csf_p05': 'mriqc_summary_csf_p05',
+    'neuroinfo:t2qc/mriqc/summary_csf_p95': 'mriqc_summary_csf_p95',
+    'neuroinfo:t2qc/mriqc/summary_csf_stdv': 'mriqc_summary_csf_stdv',
+    'neuroinfo:t2qc/mriqc/summary_gm_k': 'mriqc_summary_gm_k',
+    'neuroinfo:t2qc/mriqc/summary_gm_mad': 'mriqc_summary_gm_mad',
+    'neuroinfo:t2qc/mriqc/summary_gm_mean': 'mriqc_summary_gm_mean',
+    'neuroinfo:t2qc/mriqc/summary_gm_median': 'mriqc_summary_gm_median',
+    'neuroinfo:t2qc/mriqc/summary_gm_n': 'mriqc_summary_gm_n',
+    'neuroinfo:t2qc/mriqc/summary_gm_p05': 'mriqc_summary_gm_p05',
+    'neuroinfo:t2qc/mriqc/summary_gm_p95': 'mriqc_summary_gm_p95',
+    'neuroinfo:t2qc/mriqc/summary_gm_stdv': 'mriqc_summary_gm_stdv',
+    'neuroinfo:t2qc/mriqc/summary_wm_k': 'mriqc_summary_wm_k',
+    'neuroinfo:t2qc/mriqc/summary_wm_mad': 'mriqc_summary_wm_mad',
+    'neuroinfo:t2qc/mriqc/summary_wm_mean': 'mriqc_summary_wm_mean',
+    'neuroinfo:t2qc/mriqc/summary_wm_median': 'mriqc_summary_wm_median',
+    'neuroinfo:t2qc/mriqc/summary_wm_n': 'mriqc_summary_wm_n',
+    'neuroinfo:t2qc/mriqc/summary_wm_p05': 'mriqc_summary_wm_p05',
+    'neuroinfo:t2qc/mriqc/summary_wm_p95': 'mriqc_summary_wm_p95',
+    'neuroinfo:t2qc/mriqc/summary_wm_stdv': 'mriqc_summary_wm_stdv',
+    'neuroinfo:t2qc/mriqc/tpm_overlap_csf': 'mriqc_tpm_overlap_csf',
+    'neuroinfo:t2qc/mriqc/tpm_overlap_gm': 'mriqc_tpm_overlap_gm',
+    'neuroinfo:t2qc/mriqc/tpm_overlap_wm': 'mriqc_tpm_overlap_wm',
+    'neuroinfo:t2qc/mriqc/wm2max': 'mriqc_wm2max',
+    'neuroinfo:t2qc/vnav/vnav_min': 'vnav_vnav_min',
+    'neuroinfo:t2qc/vnav/vnav_max': 'vnav_vnav_max',
+    'neuroinfo:t2qc/vnav/vnav_acq_tot': 'vnav_vnav_acq_tot',
+    'neuroinfo:t2qc/vnav/vnav_reacq': 'vnav_vnav_reacq',
+    'neuroinfo:t2qc/vnav/mean_mot_rms_per_min': 'vnav_mean_mot_rms_per_min',
+    'neuroinfo:t2qc/vnav/mean_mot_max_per_min': 'vnav_mean_mot_max_per_min',
+    'neuroinfo:t2qc/vnav/vnav_failed': 'vnav_vnav_failed',
+    'neuroinfo:t2qc/manual/wrap': 'manual_wrap',
+    'neuroinfo:t2qc/manual/cover': 'manual_cover',
+    'neuroinfo:t2qc/manual/motion_brain': 'manual_motion_brain',
+    'neuroinfo:t2qc/manual/motion_out': 'manual_motion_out',
+    'neuroinfo:t2qc/manual/ghost_brain': 'manual_ghost_brain',
+    'neuroinfo:t2qc/manual/ghost_out': 'manual_ghost_out',
+    'neuroinfo:t2qc/manual/spike': 'manual_spike',
+    'neuroinfo:t2qc/manual/art_brain': 'manual_art_brain',
+    'neuroinfo:t2qc/manual/art_out': 'manual_art_out',
+    'neuroinfo:t2qc/manual/inhom': 'manual_inhom',
+    'neuroinfo:t2qc/manual/overall': 'manual_overall'
+}
+
 def anatqc(auth, label, scan_ids=None, project=None, aid=None):
     '''
     Get AnatQC data as a sequence of dictionaries.
