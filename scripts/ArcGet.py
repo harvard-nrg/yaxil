@@ -179,7 +179,7 @@ def splitarg(args):
 
 def readme(auth, label, project=None):
     sio = six.StringIO()
-    writer = csv.writer(sio)
+    writer = csv.writer(sio, dialect=csv.unix_dialect, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(['scan', 'type', 'series', 'quality', 'note'])
     scans = yaxil.scans(auth, label=label, project=project)
     for scan in natsorted(scans, key=lambda x: x['id']):
