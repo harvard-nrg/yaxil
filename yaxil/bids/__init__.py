@@ -69,6 +69,8 @@ def proc_func(config, args):
     Download functional data and convert to BIDS
     '''
     refs = dict()
+    sub = legal.sub('', args.subject)
+    ses = legal.sub('', args.session)
     for scan in iterconfig(config, 'func'):
         ref = scan.get('id', None)
         templ = 'sub-${sub}_ses-${ses}'
@@ -83,8 +85,8 @@ def proc_func(config, args):
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
-            sub=legal.sub('', args.subject),
-            ses=legal.sub('', args.session),
+            sub=sub,
+            ses=ses,
             task=scan.get('task', None),
             acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
@@ -95,12 +97,12 @@ def proc_func(config, args):
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
         if not os.path.exists(sourcedata_dir):
             os.makedirs(sourcedata_dir)
-        dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
+        dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
-        refs[ref] = os.path.join(scan['type'], fname)
+        refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
@@ -128,6 +130,8 @@ def proc_anat(config, args):
     Download anatomical data and convert to BIDS
     '''
     refs = dict()
+    sub = legal.sub('', args.subject)
+    ses = legal.sub('', args.session)
     for scan in iterconfig(config, 'anat'):
         ref = scan.get('id', None)
         templ = 'sub-${sub}_ses-${ses}'
@@ -138,8 +142,8 @@ def proc_anat(config, args):
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
-            sub=legal.sub('', args.subject),
-            ses=legal.sub('', args.session),
+            sub=sub,
+            ses=ses,
             acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
             modality=scan.get('modality', None),
@@ -148,12 +152,12 @@ def proc_anat(config, args):
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
         if not os.path.exists(sourcedata_dir):
             os.makedirs(sourcedata_dir)
-        dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
+        dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
         # convert to nifti (edge cases for T1w_vNav_setter)
         fname = '{0}.nii.gz'.format(fbase)
-        refs[ref] = os.path.join(scan['type'], fname)
+        refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         modality = scan.get('modality', None)
@@ -206,6 +210,8 @@ def proc_dwi(config, args):
     Download diffusion data and convert to BIDS
     '''
     refs = dict()
+    sub = legal.sub('', args.subject)
+    ses = legal.sub('', args.session)
     for scan in iterconfig(config, 'dwi'):
         ref = scan.get('id', None)
         templ = 'sub-${sub}_ses-${ses}'
@@ -218,8 +224,8 @@ def proc_dwi(config, args):
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
-            sub=legal.sub('', args.subject),
-            ses=legal.sub('', args.session),
+            sub=sub,
+            ses=ses,
             acquisition=scan.get('acquisition', None),
             direction=scan.get('direction', None),
             run=scan.get('run', None),
@@ -229,12 +235,12 @@ def proc_dwi(config, args):
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
         if not os.path.exists(sourcedata_dir):
             os.makedirs(sourcedata_dir)
-        dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
+        dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
-        refs[ref] = os.path.join(scan['type'], fname)
+        refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         modality = scan.get('modality', None)
@@ -261,6 +267,8 @@ def proc_dwi(config, args):
 
 def proc_fmap(config, args, func_refs=None):
     refs = dict()
+    sub = legal.sub('', args.subject)
+    ses = legal.sub('', args.session)
     for scan in iterconfig(config, 'fmap'):
         ref = scan.get('id', None)
         templ = 'sub-${sub}_ses-${ses}'
@@ -273,8 +281,8 @@ def proc_fmap(config, args, func_refs=None):
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
-            sub=legal.sub('', args.subject),
-            ses=legal.sub('', args.session),
+            sub=sub,
+            ses=ses,
             acquisition=scan.get('acquisition', None),
             run=scan.get('run', None),
             direction=scan.get('direction', None),
@@ -284,12 +292,12 @@ def proc_fmap(config, args, func_refs=None):
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
         if not os.path.exists(sourcedata_dir):
             os.makedirs(sourcedata_dir)
-        dicom_dir = os.path.join(sourcedata_dir, '{0}.dicom'.format(fbase))
+        dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
-        refs[ref] = os.path.join(scan['type'], fname)
+        refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
