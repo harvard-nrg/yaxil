@@ -376,8 +376,8 @@ def accession(auth, label, project=None):
     return expts[0].id
 
 def download(auth, label, scan_ids=None, project=None, aid=None,
-             out_dir='.', in_mem=True, progress=False, attempts=1,
-             out_format='flat'):
+             out_dir='.', out_file='.', in_mem=True, progress=False,
+             attempts=1, out_format='flat', extract=True):
     '''
     Download scan data from XNAT.
 
@@ -435,14 +435,23 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     if r.status_code != requests.codes.ok:
         raise DownloadError("response not ok (%s) from %s" % (r.status_code, r.url))
     # create output directory
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    if extract:  # if output is unzipped dicoms
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+    else:
+        out_dir = os.path.dirname(out_file)
+
+    # else:  # if output is a zip file
+        # if not os.path.exists(os.path.dirname(out_file)):
+            # os.makedirs(os.path.dirname(out_file))
     # keep response content in memory or write to a file (memory is obviously faster, but limited)
     if in_mem:
         content = io.BytesIO()
         logger.debug("response content will be read into memory")
     else:
-        content = tf.NamedTemporaryFile(dir=out_dir, prefix="xnat", suffix=".zip")
+        delete = True if extract else False
+        content = tf.NamedTemporaryFile(dir=out_dir, prefix="xnat",
+                suffix=".zip", delete=delete)
         logger.debug("response content will be stored on disk %s", content.name)
     # progress indicator setup
     if progress:
@@ -467,6 +476,7 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     # progress indicator shut down
     if progress:
         sys.stdout.write('done.\n'); sys.stdout.flush()
+
     # load reponse content into a zipfile object
     try:
         zf = zipfile.ZipFile(content, allowZip64=True)
@@ -478,13 +488,17 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
             fo.flush()
             os.fsync(fo.fileno())
         raise DownloadError("bad zip file, written to %s" % fo.name)
-    # finally extract the zipfile (with various nasty edge cases handled)
-    logger.debug("extracting zip archive to %s", out_dir)
 
-    if out_format == 'native':
-        zf.extractall(path=out_dir)
-    else:  # out_format == 'flat' or out_format == '1.4'
-        extract(zf, content, out_dir)
+    if extract:
+        # finally extract the zipfile (with various nasty edge cases handled)
+        logger.debug("extracting zip archive to %s", out_dir)
+
+        if out_format == 'native':
+            zf.extractall(path=out_dir)
+        else:  # out_format == 'flat' or out_format == '1.4'
+            extract(zf, content, out_dir)
+    else:
+        os.rename(content.name, out_file)
 
 
 def extract(zf, content, out_dir='.'):
