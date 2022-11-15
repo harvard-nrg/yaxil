@@ -46,10 +46,12 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base):
         sourcedata=sourcedata_base
     )
     # process func, anat, and fmap
-    func_refs = proc_func(config, args)
-    anat_refs = proc_anat(config, args)
-    dwi_refs  = proc_dwi(config, args)
-    fmap_refs = proc_fmap(config, args, func_refs)
+    refs = dict()
+    refs.update(proc_func(config, args))
+    refs.update(proc_anat(config, args))
+    refs.update(proc_dwi(config, args))
+    logger.debug(f'refs={refs}')
+    proc_fmap(config, args, refs)
 
 def check_dataset_description(bids_dir, bids_version='1.4.0', ds_type='raw'):
     if not os.path.exists(bids_dir):
@@ -265,8 +267,8 @@ def proc_dwi(config, args):
         commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
 
-def proc_fmap(config, args, func_refs=None):
-    refs = dict()
+def proc_fmap(config, args, refs=None):
+    fmap_refs = dict()
     sub = legal.sub('', args.subject)
     ses = legal.sub('', args.session)
     for scan in iterconfig(config, 'fmap'):
@@ -297,7 +299,7 @@ def proc_fmap(config, args, func_refs=None):
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
-        refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
+        fmap_refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
@@ -323,18 +325,18 @@ def proc_fmap(config, args, func_refs=None):
             }
         }
         # insert intended-for into json sidecar
-        if 'intended for' in scan and func_refs:
+        if 'intended for' in scan and refs:
             for intended in scan['intended for']:
-                if intended in func_refs:
-                    logger.info('adding IntendedFor %s to %s', func_refs[intended], sidecar_file)
+                if intended in refs:
+                    logger.info('adding IntendedFor %s to %s', refs[intended], sidecar_file)
                     if 'IntendedFor' not in sidecarjs:
                         sidecarjs['IntendedFor'] = list()
-                    if func_refs[intended] not in sidecarjs['IntendedFor']:
-                        sidecarjs['IntendedFor'].append(func_refs[intended])
+                    if refs[intended] not in sidecarjs['IntendedFor']:
+                        sidecarjs['IntendedFor'].append(refs[intended])
             logger.info('writing file %s', sidecar_file)
         # write out updated json sidecar
         commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
-    return refs
+    return fmap_refs
 
 def iterconfig(config, scan_type):
     '''
