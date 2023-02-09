@@ -45,6 +45,15 @@ def main():
         logger.warn('DEPRECATION WARNING: use -f|--output-format bids instead of --bids')
         args.output_format = 'bids'
 
+    auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
+
+    # resolve --accession to session label and project
+    if args.accession:
+        details = yaxil.__experiment_details(auth, args.accession)
+        args.project = details['session_project']
+        args.label = details['session_label']
+        logger.debug(f'resolved {args.accession} to project={args.project}, session={args.label}')
+
     args.output_dir = os.path.expanduser(args.output_dir)
 
     # append additional XNAT 1.4 directories to output directory
@@ -53,8 +62,6 @@ def main():
 
     if args.insecure:
         yaxil.CHECK_CERTIFICATE = False
-
-    auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
     # print readme and exit
     if args.readme:
@@ -205,6 +212,8 @@ def parse_args():
     group_a = parser.add_mutually_exclusive_group(required=True)
     group_a.add_argument('-l', '--label',
         help='XNAT Session Label')
+    group_a.add_argument('--accession',
+        help='XNAT Accession ID')
     group_a.add_argument('-s', '--session',
         help='Same as --label (deprecated)')
     parser.add_argument('-p', '--project',
