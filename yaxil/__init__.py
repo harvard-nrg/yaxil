@@ -1111,7 +1111,7 @@ def storerest(auth, artifacts_dir, resource_name):
     assessment = os.path.join(artifacts_dir, 'assessor', 'assessment.xml')
     resources = os.path.join(artifacts_dir, 'resources')
 
-    # parseassessor and session ID from assessment.xml
+    # parse assessor and session ID from assessment.xml
     with open(assessment) as fo:
         root = etree.parse(fo)
     aid = root.find('.').attrib['ID']
@@ -1130,7 +1130,8 @@ def storerest(auth, artifacts_dir, resource_name):
         files={
             'file': open(assessment, 'rb')
         },
-        allow_redirects=True
+        allow_redirects=True,
+        verify=CHECK_CERTIFICATE
     )
     if r.status_code == requests.codes.ok:
         logger.debug(f'assessment {aid} uploaded successfully')
@@ -1146,7 +1147,8 @@ def storerest(auth, artifacts_dir, resource_name):
     r = requests.put(
         url,
         auth=(auth.username, auth.password),
-        allow_redirects=True
+        allow_redirects=True,
+        verify=CHECK_CERTIFICATE
     )
     if r.status_code == requests.codes.ok:
         logger.debug(f'resource folder created {resource_name}')
@@ -1168,7 +1170,8 @@ def storerest(auth, artifacts_dir, resource_name):
           files={
             'file': open(fullfile, 'rb')
           },
-          allow_redirects=True
+          allow_redirects=True,
+          verify=CHECK_CERTIFICATE
         )
         if r.status_code == requests.codes.ok:
             logger.debug(f'file {fullfile} was stored successfully as {resource}')
