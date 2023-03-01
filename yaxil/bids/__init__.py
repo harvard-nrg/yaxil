@@ -80,10 +80,10 @@ def proc_func(config, args):
             templ += '_task-${task}'
         if 'acquisition' in scan:
             templ += '_acq-${acquisition}'
-        if 'run' in scan:
-            templ += '_run-${run}'
         if 'direction' in scan:
             templ += '_dir-${direction}'
+        if 'run' in scan:
+            templ += '_run-${run}'
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
@@ -276,10 +276,10 @@ def proc_fmap(config, args, refs=None):
         templ = 'sub-${sub}_ses-${ses}'
         if 'acquisition' in scan:
             templ += '_acq-${acquisition}'
-        if 'run' in scan:
-            templ += '_run-${run}'
         if 'direction' in scan:
             templ += '_dir-${direction}'
+        if 'run' in scan:
+            templ += '_run-${run}'
         templ += '_${modality}'
         templ = string.Template(templ)
         fbase = templ.safe_substitute(
