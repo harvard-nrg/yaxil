@@ -268,7 +268,7 @@ def subjects(auth, label=None, project=None):
                      verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
-        raise AccessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
+        raise AccessionError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     try:
         results = r.json()
         __quick_validate(results)
@@ -357,7 +357,7 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
     r = requests.get(url, params=payload, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     # validate response
     if r.status_code != requests.codes.ok:
-        raise AccessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
+        raise AccessionError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     try:
         results = r.json()
         __quick_validate(results)
@@ -454,7 +454,7 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
         backoff *= 2
     # if we still have a not-ok status at this point, the download failed
     if r.status_code != requests.codes.ok:
-        raise DownloadError("response not ok (%s) from %s" % (r.status_code, r.url))
+        raise DownloadError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     # create output directory
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
@@ -622,7 +622,7 @@ def scansearch(auth, label, filt, project=None, aid=None):
     logger.debug("issuing http request %s", url)
     r = requests.get(url, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     if r.status_code != requests.codes.ok:
-        raise ScanSearchError("response not ok (%s) from %s" % (r.status_code, r.url))
+        raise ScanSearchError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     if not r.content:
         raise ScanSearchError("response is empty from %s" % r.url)
     # read the result into a csv reader
@@ -923,7 +923,7 @@ def _get(auth, path, fmt, autobox=True, params=None):
     logger.debug("query parameters %s", params)
     r = requests.get(url, params=params, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
     if r.status_code != requests.codes.ok:
-        raise RestApiError("response not ok (%s) from %s" % (r.status_code, r.url))
+        raise RestApiError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     if not r.content:
         raise RestApiError("response is empty from %s" % r.url)
     if autobox:
@@ -961,7 +961,7 @@ def get(auth, path, autobox=False, fmt=None, params=None):
         verify=CHECK_CERTIFICATE
     )
     if r.status_code != requests.codes.ok:
-        raise RestApiError(f'response not ok ({r.status_code}) from {r.url}')
+        raise RestApiError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     if not r.content:
         raise RestApiError(f'response is empty from {r.url}')
     if autobox:
@@ -1232,7 +1232,7 @@ def storexar(auth, archive, verify=True):
         logger.debug('Session cookies: \n%s', requests.utils.dict_from_cookiejar(s.cookies))
 
         if r.status_code != requests.codes.ok:
-            raise StoreXARError('response not ok (%s) from %s' % (r.status_code, r.url))
+            raise StoreXARError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
 
         # post the xar archive
         logger.debug('posting xar archive')
@@ -1255,7 +1255,7 @@ def storexar(auth, archive, verify=True):
         logger.debug('XAR archive upload headers: \n%s', r.headers)
 
         if r.status_code != requests.codes.ok:
-            raise StoreXARError('response not ok (%s) from %s' % (r.status_code, r.url))
+            raise StoreXARError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
 
         # check for success string in response content
         if not 'Upload Complete' in r.text:
