@@ -92,7 +92,7 @@ def main():
         if args.config:
             logger.debug('reading bids configuration from %s', args.config)
             config = yaml.load(args.config, Loader=yaml.FullLoader)
-            bids.bids_from_config(sess, scans_meta, config, args.output_dir)
+            bids.bids_from_config(sess, scans_meta, config, args.output_dir, args.in_mem)
         else:
             download = dict()
             # resolve scans by ids
@@ -111,7 +111,7 @@ def main():
             # download data to a flat directory or output to a bids structure
             if args.output_format == 'bids':
                 config = generate_bids_config(download)
-                bids.bids_from_config(sess, scans_meta, config, args.output_dir)
+                bids.bids_from_config(sess, scans_meta, config, args.output_dir, args.in_mem)
             else:
                 scan_ids = natsorted(download.keys())
                 logger.info('downloading scans %s', ','.join(scan_ids))
@@ -122,7 +122,8 @@ def main():
                     out_dir=args.output_dir,
                     progress=1024**2,
                     attempts=3,
-                    out_format=args.output_format
+                    out_format=args.output_format,
+                    in_mem=args.in_mem
                 )
 
 def generate_bids_config(scans):
@@ -239,6 +240,8 @@ def parse_args():
         help='Output in BIDS format (same as --output-format=bids)')
     parser.add_argument('--readme', action='store_true',
         help='Output scan summary in parsable format')
+    parser.add_argument('--in-mem', action='store_true',
+        help='Keep XNAT response in memory for speed')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     parser.add_argument('--version', action='version', version=__version__.__version__)

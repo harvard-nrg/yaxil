@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 # bids legal characters for sub, ses, and task
 legal = re.compile('[^a-zA-Z0-9]')
 
-def bids_from_config(yaxil_session, scans_metadata, config, out_base):
+def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=False):
     '''
     Create a BIDS output directory from configuration file
     '''
@@ -43,7 +43,8 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base):
         session_id=session_id,
         project=project,
         bids=bids_base,
-        sourcedata=sourcedata_base
+        sourcedata=sourcedata_base,
+        in_mem=in_mem
     )
     # process func, anat, and fmap
     refs = dict()
@@ -101,7 +102,7 @@ def proc_func(config, args):
             os.makedirs(sourcedata_dir)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -156,7 +157,7 @@ def proc_anat(config, args):
             os.makedirs(sourcedata_dir)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
         # convert to nifti (edge cases for T1w_vNav_setter)
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -239,7 +240,7 @@ def proc_dwi(config, args):
             os.makedirs(sourcedata_dir)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -296,7 +297,7 @@ def proc_fmap(config, args, refs=None):
             os.makedirs(sourcedata_dir)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         fmap_refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
