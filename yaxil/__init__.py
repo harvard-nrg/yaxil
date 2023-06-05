@@ -55,7 +55,8 @@ class Response:
 XnatAuth = col.namedtuple("XnatAuth", [
     "url",
     "username",
-    "password"
+    "password",
+    "cookie"
 ])
 '''
 Container to hold XNAT authentication information. Fields include the ``url``,
@@ -64,7 +65,7 @@ Container to hold XNAT authentication information. Fields include the ``url``,
 
 def test_auth(auth):
     '''
-    Validate auth object against XNAT
+    Validate credentials against XNAT
 
     Example:
         >>> import yaxil
@@ -74,10 +75,56 @@ def test_auth(auth):
     '''
     baseurl = auth.url.rstrip('/')
     url = f'{baseurl}/data/projects'
-    r = requests.get(url, auth=basicauth(auth), params={ 'columns': 'ID' })
+    r = requests.get(
+        url,
+        auth=basicauth(auth),
+        params={
+            'columns': 'ID'
+        }
+    )
     if r.status_code == requests.codes.UNAUTHORIZED:
         return False
     return True
+
+def start_session(auth):
+    '''
+    Return auth object with populated authentication cookie (JSESSIONID)
+    '''
+    baseurl = auth.url.rstrip('/')
+    url = f'{baseurl}/data/JSESSION'
+    r = requests.get(
+        url,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
+    if r.status_code != requests.codes.ok:
+        raise SessionError(f'response not ok ({r.status_code}) from {r.url}')
+    return XnatAuth(
+        username=auth.username,
+        password=auth.password,
+        url=auth.url,
+        cookie={
+            'JSESSIONID': r.text
+        }
+    )
+
+def end_session(auth):
+    if not auth.cookie:
+        return
+    baseurl = auth.url.rstrip('/')
+    url = f'{baseurl}/data/JSESSION'
+    r = requests.delete(
+        url,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
+    if r.status_code != requests.codes.ok:
+        raise SessionError('response not ok ({0}) from {1}'.format(r.status_code, r.url))
+
+class SessionError(Exception):
+    pass
 
 def basicauth(auth):
     '''
@@ -87,7 +134,6 @@ def basicauth(auth):
         return (auth.username, auth.password)
     return None
 
-@contextmanager
 def session(auth):
     '''
     Create a session context to avoid passing `auth` to
@@ -106,8 +152,7 @@ def session(auth):
     :returns: YAXIL session object
     :rtype: :mod:`yaxil.session.Session`
     '''
-    sess = Session(auth)
-    yield sess
+    return Session(auth)
 
 def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth'):
     '''
@@ -127,7 +172,7 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
     result = tuple()
     # First, look for authentication data in ~/.xnat_auth
     if alias:
-        logger.debug('returning authentication data from %s', cfg)
+        logger.debug(f'returning authentication data from {cfg}')
         return auth(alias)
     # Second, look for authentication data from --host, --user, --password function arguments
     authargs = (host, username)
@@ -137,7 +182,13 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
         logger.debug('returning authentication data from command line')
         if not password:
             password = gp.getpass('Enter XNAT passphrase:')
-        return XnatAuth(url=host, username=username, password=password)
+        obj = XnatAuth(
+            url=host,
+            username=username,
+            password=password,
+            cookie=None
+        )
+        return start_session(obj)
     # Third, look for authentication data in environment variables
     host = os.environ.get('XNAT_HOST', None)
     username = os.environ.get('XNAT_USER', None)
@@ -149,7 +200,13 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
         logger.debug('returning authentication data from environment variables')
         if not password:
             password = gp.getpass('Enter XNAT passphrase:')
-        return XnatAuth(url=host, username=username, password=password)
+        obj = XnatAuth(
+            url=host,
+            username=username,
+            password=password,
+            cookie=None
+        )
+        return start_session(obj)
     raise AuthError('you must provide authentication data using xnat_auth, command line, or environment variables')
 
 def auth(alias=None, url=None, cfg="~/.xnat_auth"):
@@ -210,11 +267,13 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
         raise AuthError("too many passwords for %s in %s" % (alias, cfg))
     else:
         password = password.pop().text
-    return XnatAuth(
+    obj = XnatAuth(
         url=url.pop().text,
         username=username.pop().text,
-        password=password
+        password=password,
+        cookie=None
     )
+    return start_session(obj)
 
 Subject = col.namedtuple('Subject', [
     'uri',
@@ -264,8 +323,13 @@ def subjects(auth, label=None, project=None):
     if project:
         payload['project'] = project
     # submit the request
-    r = requests.get(url, params=payload, auth=basicauth(auth),
-                     verify=CHECK_CERTIFICATE)
+    r = requests.get(
+        url,
+        params=payload,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
     # validate response
     if r.status_code != requests.codes.ok:
         raise AccessionError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
@@ -354,7 +418,13 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
         stop = arrow.get(daterange[1]).format('MM/DD/YYYY')
         payload['date'] = '{0}-{1}'.format(start, stop)
     # submit request
-    r = requests.get(url, params=payload, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+    r = requests.get(
+        url,
+        params=payload,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
     # validate response
     if r.status_code != requests.codes.ok:
         raise AccessionError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
@@ -443,7 +513,13 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     backoff = 10
     for _ in range(attempts):
         logger.debug("issuing http request %s", url)
-        r = requests.get(url, stream=True, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+        r = requests.get(
+            url,
+            stream=True,
+            auth=basicauth(auth),
+            cookies=auth.cookie,
+            verify=CHECK_CERTIFICATE
+        )
         logger.debug("response headers %s", r.headers)
         if r.status_code == requests.codes.ok:
             break
@@ -620,7 +696,12 @@ def scansearch(auth, label, filt, project=None, aid=None):
     # get scans for accession as a csv
     url = "%s/data/experiments/%s/scans?format=csv" % (auth.url.rstrip('/'), aid)
     logger.debug("issuing http request %s", url)
-    r = requests.get(url, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+    r = requests.get(
+        url,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
     if r.status_code != requests.codes.ok:
         raise ScanSearchError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     if not r.content:
@@ -921,7 +1002,13 @@ def _get(auth, path, fmt, autobox=True, params=None):
     params["format"] = fmt
     logger.debug("issuing http request %s", url)
     logger.debug("query parameters %s", params)
-    r = requests.get(url, params=params, auth=basicauth(auth), verify=CHECK_CERTIFICATE)
+    r = requests.get(
+        url,
+        params=params,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
     if r.status_code != requests.codes.ok:
         raise RestApiError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     if not r.content:
@@ -958,6 +1045,7 @@ def get(auth, path, autobox=False, fmt=None, params=None):
         url,
         params=params,
         auth=basicauth(auth),
+        cookies=auth.cookie,
         verify=CHECK_CERTIFICATE
     )
     if r.status_code != requests.codes.ok:
@@ -1022,6 +1110,7 @@ def exists(auth, xnatid, datatype='experiments'):
     r = requests.get(
         url,
         auth=basicauth(auth),
+        cookies=auth.cookie,
         verify=CHECK_CERTIFICATE
     )
     if r.status_code == requests.codes.ok:
@@ -1126,7 +1215,8 @@ def storerest(auth, artifacts_dir, resource_name):
     logger.debug(f'posting {assessment} to {url}')
     r = requests.post(
         url,
-        auth=(auth.username, auth.password),
+        auth=basicauth(auth),
+        cookies=auth.cookie,
         files={
             'file': open(assessment, 'rb')
         },
@@ -1146,7 +1236,8 @@ def storerest(auth, artifacts_dir, resource_name):
     logger.debug('PUT %s', url)
     r = requests.put(
         url,
-        auth=(auth.username, auth.password),
+        auth=basicauth(auth),
+        cookies=auth.cookie,
         allow_redirects=True,
         verify=CHECK_CERTIFICATE
     )
@@ -1166,7 +1257,8 @@ def storerest(auth, artifacts_dir, resource_name):
         logger.debug('PUT %s', url)
         r = requests.put(
           url,
-          auth=(auth.username, auth.password),
+          auth=basicauth(auth),
+          cookies=auth.cookie,
           files={
             'file': open(fullfile, 'rb')
           },
