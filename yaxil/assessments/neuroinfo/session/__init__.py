@@ -4,6 +4,8 @@ import yaxil.assessments.neuroinfo as neuroinfo
 class Session:
     def __init__(self, auth):
         self._auth = auth
+        self.url = auth.url
+        self.username = auth.username
 
     def boldqc(self, *args, **kwargs):
         return neuroinfo.boldqc(self._auth, *args, **kwargs)
