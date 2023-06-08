@@ -76,7 +76,7 @@ def main():
 
     # attempt to validate credentials before saving
     if not args.no_validation:
-        auth = yaxil.XnatAuth(url=args.url, username=args.username, password=args.password)
+        auth = yaxil.XnatAuth(url=args.url, username=args.username, password=args.password, cookie=None)
         try:
             if not yaxil.test_auth(auth):
                 logger.critical('credentials are invalid')
