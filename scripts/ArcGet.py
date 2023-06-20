@@ -45,6 +45,9 @@ def main():
         logger.warn('DEPRECATION WARNING: use -f|--output-format bids instead of --bids')
         args.output_format = 'bids'
 
+    if args.insecure:
+        yaxil.CHECK_CERTIFICATE = False
+
     auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
     # resolve --accession to session label and project
@@ -59,9 +62,6 @@ def main():
     # append additional XNAT 1.4 directories to output directory
     if args.output_format == '1.4':
         args.output_dir = os.path.join(args.output_dir, args.label, 'RAW')
-
-    if args.insecure:
-        yaxil.CHECK_CERTIFICATE = False
 
     # print readme and exit
     if args.readme:
