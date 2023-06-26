@@ -355,7 +355,8 @@ Experiment = col.namedtuple('Experiment', [
     'project',
     'subject_id',
     'subject_label',
-    'archived_date'
+    'archived_date',
+    'note'
 ])
 '''
 Container to hold XNAT Experiment information. Fields include the Experiment URI
@@ -394,14 +395,14 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
         raise ValueError('cannot provide subject with label or project')
     url = '{0}/data/experiments'.format(auth.url.rstrip('/'))
     logger.debug('issuing http request %s', url)
-    # compile query string
     columns = [
         'ID',
         'label',
         'project',
         'xnat:subjectassessordata/subject_id',
         'subject_label',
-        'insert_date'
+        'insert_date',
+        'note'
     ]
     payload = {
         'columns': ','.join(columns)
@@ -437,13 +438,16 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
     if int(results['totalRecords']) == 0:
         raise NoExperimentsError('no records returned for {0}'.format(r.url))
     for item in results['Result']:
-        yield Experiment(uri=item['URI'],
-                         id=item['ID'],
-                         project=item['project'],
-                         label=item['label'],
-                         subject_id=item['subject_ID'],
-                         subject_label=item['subject_label'],
-                         archived_date=item['insert_date'])
+        yield Experiment(
+            uri=item['URI'],
+            id=item['ID'],
+            project=item['project'],
+            label=item['label'],
+            subject_id=item['subject_ID'],
+            subject_label=item['subject_label'],
+            archived_date=item['insert_date'],
+            note=item['note']
+        )
 
 @functools.lru_cache
 def accession(auth, label, project=None):
