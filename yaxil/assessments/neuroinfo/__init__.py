@@ -512,32 +512,31 @@ def dwiqc(auth, label=None, scan_ids=None, project=None, aid=None):
             data['files'] = files
             yield data
 dwiqc.columns = {
-    'neuroinfo:dwiQC/id': 'ID',
-    'neuroinfo:dwiQC/id': 'id',
-    'neuroinfo:dwiQC/date': 'date',
-    'neuroinfo:dwiQC/time': 'time',
-    'neuroinfo:dwiQC/imagesession_id': 'session_id',
-    'neuroinfo:dwiQC/dwi_scan_id': 'dwi_scan_id',
-    'neuroinfo:dwiQC/ap_fmap_scan_id': 'ap_fmap_scan_id',
-    'neuroinfo:dwiQC/pa_fmap_scan_id': 'pa_fmap_scan_id',    
-    'neuroinfo:dwiQC/session_label': 'session_label',
-    'neuroinfo:dwiQC/eddy_quad/Average_abs_motion_mm': 'Average_abs_motion_mm',
-    'neuroinfo:dwiQC/eddy_quad/Average_rel_motion_mm': 'Average_rel_motion_mm',
-    'neuroinfo:dwiQC/eddy_quad/Average_x_translation_motion_mm': 'Average_x_translation_mm',
-    'neuroinfo:dwiQC/eddy_quad/Average_y_translation_motion_mm': 'Average_y_translation_mm',
-    'neuroinfo:dwiQC/eddy_quad/Average_z_translation_motion_mm': 'Average_z_translation_mm',
-    'neuroinfo:dwiQC/eddy_quad/Average_SNR_B0': 'Average_SNR_B0',
-    'neuroinfo:dwiQC/manual/wrap': 'manual_wrap',
-    'neuroinfo:dwiQC/manual/motion': 'manual_motion',
-    'neuroinfo:dwiQC/manual/cover': 'manual_cover',
-    'neuroinfo:dwiQC/manual/ghost_brain': 'manual_ghost_brain',
-    'neuroinfo:dwiQC/manual/ghost_out': 'manual_ghost_out',
-    'neuroinfo:dwiQC/manual/spike': 'manual_spike',
-    'neuroinfo:dwiQC/manual/inhom': 'manual_inhom',
-    'neuroinfo:dwiQC/manual/overall': 'manual_overall'
+    'neuroinfo:dwiqc/id': 'ID',
+    'neuroinfo:dwiqc/id': 'id',
+    'neuroinfo:dwiqc/date': 'date',
+    'neuroinfo:dwiqc/time': 'time',
+    'neuroinfo:dwiqc/imagesession_id': 'session_id',
+    'neuroinfo:dwiqc/dwi_scan_id': 'dwi_scan_id',
+    'neuroinfo:dwiqc/ap_fmap_scan_id': 'ap_fmap_scan_id',
+    'neuroinfo:dwiqc/pa_fmap_scan_id': 'pa_fmap_scan_id',    
+    'neuroinfo:dwiqc/session_label': 'session_label',
+    'neuroinfo:dwiqc/eddy_quad/average_abs_motion_mm': 'average_abs_motion_mm',
+    'neuroinfo:dwiqc/eddy_quad/average_rel_motion_mm': 'average_rel_motion_mm',
+    'neuroinfo:dwiqc/eddy_quad/average_x_translation_mm': 'average_x_translation_mm',
+    'neuroinfo:dwiqc/eddy_quad/average_y_translation_mm': 'average_y_translation_mm',
+    'neuroinfo:dwiqc/eddy_quad/average_z_translation_mm': 'average_z_translation_mm',
+    'neuroinfo:dwiqc/eddy_quad/average_snr_b0': 'average_snr_b0',
+    'neuroinfo:dwiqc/manual/wrap': 'manual_wrap',
+    'neuroinfo:dwiqc/manual/motion': 'manual_motion',
+    'neuroinfo:dwiqc/manual/cover': 'manual_cover',
+    'neuroinfo:dwiqc/manual/ghost_brain': 'manual_ghost_brain',
+    'neuroinfo:dwiqc/manual/ghost_out': 'manual_ghost_out',
+    'neuroinfo:dwiqc/manual/spike': 'manual_spike',
+    'neuroinfo:dwiqc/manual/inhom': 'manual_inhom',
+    'neuroinfo:dwiqc/manual/overall': 'manual_overall'
+
 }
-
-
 
 def __files(auth, aid):
     path = f'/data/experiments/{aid}/files'
