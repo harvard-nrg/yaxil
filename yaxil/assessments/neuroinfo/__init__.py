@@ -1,6 +1,69 @@
 import yaxil
+from jsonpath_ng import jsonpath
+from jsonpath_ng.ext import parse
 from contextlib import contextmanager
 from yaxil.assessments.neuroinfo.session import Session
+
+def dwiqc(auth, label=None, scan_ids=None, project=None, aid=None):
+    '''
+    Get DwiQC data as a sequence of dictionaries.
+
+    Example:
+        >>> import json
+        >>> import yaxil.assessments.neuroinfo as neuroinfo
+        >>> auth = yaxil.auth('doctest')
+        >>> for qc in neuroinfo.dwiqc(auth, 'TestSession01'):
+        ...   print(json.dumps(qc, indent=2))
+        {
+          "id": "TestSession01_DWI_30_DWIQC",
+          ...
+        }
+
+    :param auth: XNAT authentication object
+    :type auth: :mod:`yaxil.XnatAuth`
+    :param label: XNAT MR Session label
+    :type label: str
+    :param scan_ids: Scan numbers to include
+    :type scan_ids: list
+    :param project: XNAT MR Session project
+    :type project: str
+    :param aid: XNAT MR Session Accession ID
+    :type aid: str
+    :returns: Generator of DwiQC data dictionaries
+    :rtype: :mod:`dict`
+    '''
+    scan_ids = map(str, scan_ids)
+    if not aid:
+        aid = yaxil.accession(auth, label, project)
+    experiment_details = yaxil.__experiment_details(auth, aid)
+    path = f'/data/experiments/{aid}/assessors'
+    params = {
+        'xsiType': 'neuroinfo:dwiqc',
+        'columns': 'label'
+    }
+    if project:
+        params['project'] = project
+    _,result = yaxil._get(auth, path, 'json', autobox=True, params=params)
+    dwiqc_ids = [ x['label'] for x in result['ResultSet']['Result'] ]
+    for dwiqc_id in dwiqc_ids:
+        path = f'/data/experiments/{dwiqc_id}'
+        params = dict()
+        if project:
+            params['project'] = project
+        _,result = yaxil._get(auth, path, 'json', autobox=True, params=params)
+        expr = parse('items[0].data_fields')
+        data = expr.find(result)[0].value
+        if scan_ids and data['dwi_scan_id'] not in scan_ids:
+            continue
+        expr = parse("$.items[0].children[?(@.field == 'eddy_quad/shell_cnr/cnr')].items[*].data_fields")
+        shell_cnr = [ x.value for x in expr.find(result) ]
+        for x in shell_cnr:
+            del x['neuroinfo_dwiqc_cnr_id'] # internal XNAT bookkeeping material?
+        data['shell_cnr'] = shell_cnr
+        data.update(experiment_details)
+        files = __files(auth, dwiqc_id)
+        data['files'] = files
+        yield data
 
 @contextmanager
 def session(auth):
@@ -459,83 +522,6 @@ anatqc.columns = {
     'neuroinfo:anatqc/manual/art_out': 'manual_art_out',
     'neuroinfo:anatqc/manual/inhom': 'manual_inhom',
     'neuroinfo:anatqc/manual/overall': 'manual_overall'
-}
-
-def dwiqc(auth, label=None, scan_ids=None, project=None, aid=None):
-    '''
-    Get DwiQC data as a sequence of dictionaries.
-
-    Example:
-        >>> import json
-        >>> import yaxil.assessments.neuroinfo as neuroinfo
-        >>> auth = yaxil.auth('doctest')
-        >>> for qc in neuroinfo.dwiqc(auth, 'TestSession01'):
-        ...   print(json.dumps(qc, indent=2))
-        {
-          "id": "TestSession01_DWI_30_DWIQC",
-          ...
-        }
-
-    :param auth: XNAT authentication object
-    :type auth: :mod:`yaxil.XnatAuth`
-    :param label: XNAT MR Session label
-    :type label: str
-    :param scan_ids: Scan numbers to include
-    :type scan_ids: list
-    :param project: XNAT MR Session project
-    :type project: str
-    :param aid: XNAT MR Session Accession ID
-    :type aid: str
-    :returns: Generator of DwiQC data dictionaries
-    :rtype: :mod:`dict`
-    '''
-
-    if not aid:
-        aid = yaxil.accession(auth, label, project)
-    experiment_details = yaxil.__experiment_details(auth, aid)
-    path = '/data/experiments'
-    params = {
-        'xsiType': 'neuroinfo:dwiqc',
-        'columns': ','.join(dwiqc.columns.keys())
-    }
-    if project:
-        params['project'] = project
-    params['xnat:mrSessionData/ID'] = aid
-    _,result = yaxil._get(auth, path, 'json', autobox=True, params=params)
-    for result in result['ResultSet']['Result']:
-        if scan_ids == None or result['neuroinfo:dwiqc/dwi_scan_id'] in scan_ids:
-            data = dict()
-            for k,v in iter(dwiqc.columns.items()):
-                data[v] = result[k]
-            files = __files(auth, result['neuroinfo:dwiqc/id'])
-            data.update(experiment_details)
-            data['files'] = files
-            yield data
-dwiqc.columns = {
-    'neuroinfo:dwiqc/id': 'ID',
-    'neuroinfo:dwiqc/id': 'id',
-    'neuroinfo:dwiqc/date': 'date',
-    'neuroinfo:dwiqc/time': 'time',
-    'neuroinfo:dwiqc/imagesession_id': 'session_id',
-    'neuroinfo:dwiqc/dwi_scan_id': 'dwi_scan_id',
-    'neuroinfo:dwiqc/ap_fmap_scan_id': 'ap_fmap_scan_id',
-    'neuroinfo:dwiqc/pa_fmap_scan_id': 'pa_fmap_scan_id',    
-    'neuroinfo:dwiqc/session_label': 'session_label',
-    'neuroinfo:dwiqc/eddy_quad/average_abs_motion_mm': 'average_abs_motion_mm',
-    'neuroinfo:dwiqc/eddy_quad/average_rel_motion_mm': 'average_rel_motion_mm',
-    'neuroinfo:dwiqc/eddy_quad/average_x_translation_mm': 'average_x_translation_mm',
-    'neuroinfo:dwiqc/eddy_quad/average_y_translation_mm': 'average_y_translation_mm',
-    'neuroinfo:dwiqc/eddy_quad/average_z_translation_mm': 'average_z_translation_mm',
-    'neuroinfo:dwiqc/eddy_quad/average_snr_b0': 'average_snr_b0',
-    'neuroinfo:dwiqc/manual/wrap': 'manual_wrap',
-    'neuroinfo:dwiqc/manual/motion': 'manual_motion',
-    'neuroinfo:dwiqc/manual/cover': 'manual_cover',
-    'neuroinfo:dwiqc/manual/ghost_brain': 'manual_ghost_brain',
-    'neuroinfo:dwiqc/manual/ghost_out': 'manual_ghost_out',
-    'neuroinfo:dwiqc/manual/spike': 'manual_spike',
-    'neuroinfo:dwiqc/manual/inhom': 'manual_inhom',
-    'neuroinfo:dwiqc/manual/overall': 'manual_overall'
-
 }
 
 def __files(auth, aid):

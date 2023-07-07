@@ -14,5 +14,6 @@ lxml = "*"
 pydicom = "*"
 arrow = "*"
 natsort = "*"
+jsonpath-ng = "*"
 requests = {extras = ["security"]}
 yaxil = {path = ".",editable = true}

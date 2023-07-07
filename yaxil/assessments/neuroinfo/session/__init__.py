@@ -16,6 +16,9 @@ class Session:
     def t2qc(self, *args, **kwargs):
         return neuroinfo.t2qc(self._auth, *args, **kwargs)
 
+    def dwiqc(self, *args, **kwargs):
+        return neuroinfo.dwiqc(self._auth, *args, **kwargs)
+
     def __enter__(self):
         self._auth = yaxil.start_session(self._auth)
         return self

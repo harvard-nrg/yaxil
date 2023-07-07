@@ -10,7 +10,8 @@ requires = [
     'arrow',
     'pyaml',
     'lxml',
-    'six'
+    'six',
+    'jsonpath-ng'
 ]
 
 test_requirements = [
