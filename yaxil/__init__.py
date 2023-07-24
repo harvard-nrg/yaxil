@@ -732,6 +732,29 @@ def scansearch(auth, label, filt, project=None, aid=None):
             raise
     return result
 
+def history(auth, label=None, project=None, experiment=None):
+    if experiment and (label or project):
+        raise ValueError('cannot supply experiment with label or project')
+    if experiment:
+        label,project = experiment.label,experiment.project
+    aid = accession(auth, label, project)
+    baseurl = auth.url.rstrip('/')
+    url = f'{baseurl}/data/experiments/{aid}/history'
+    r = requests.get(
+        url,
+        auth=basicauth(auth),
+        cookies=auth.cookie,
+        verify=CHECK_CERTIFICATE
+    )
+    logger.debug(f'response headers {r.headers}')
+    if r.status_code != requests.codes.ok:
+        message = f'response not ok ({r.status_code} {r.reason}) from {r.url}'
+        raise ExperimentHistoryError(message)
+    return r.json()
+
+class ExperimentHistoryError(Exception):
+    pass
+
 def mrscans(auth, label=None, scan_ids=None, project=None, experiment=None):
     if experiment and (label or project):
         raise ValueError('cannot supply experiment with label or project')

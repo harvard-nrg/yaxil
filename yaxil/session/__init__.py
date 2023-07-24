@@ -39,6 +39,9 @@ class Session(object):
     def storerest(self, *args, **kwargs):
         return yaxil.storerest(self._auth, *args, **kwargs)
 
+    def history(self, *args, **kwargs):
+        return yaxil.history(self._auth, *args, **kwargs)
+
     def __enter__(self):
         self._auth = yaxil.start_session(self._auth)
         return self
