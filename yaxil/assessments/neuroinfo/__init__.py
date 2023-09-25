@@ -32,7 +32,8 @@ def dwiqc(auth, label=None, scan_ids=None, project=None, aid=None):
     :returns: Generator of DwiQC data dictionaries
     :rtype: :mod:`dict`
     '''
-    scan_ids = map(str, scan_ids)
+    if scan_ids:
+        scan_ids = map(str, scan_ids)
     if not aid:
         aid = yaxil.accession(auth, label, project)
     experiment_details = yaxil.__experiment_details(auth, aid)
