@@ -4,8 +4,11 @@ import glob
 import json
 import string
 import logging
+import pydicom
 import subprocess as sp
+from pathlib import Path
 import yaxil.commons as commons
+from pydicom.errors import InvalidDicomError
 
 logger = logging.getLogger(__name__)
 
@@ -109,10 +112,14 @@ def proc_func(config, args):
         fullfile = os.path.join(args.bids, scan['type'], fname)
         logger.info('converting %s to %s', dicom_dir, fullfile)
         convert(dicom_dir, fullfile)
-        # add xnat source information to json sidecar
+        # some applications need access to the number of stored bits
+        bits_stored = get_bits_stored(dicom_dir)
+        # add xnat source information and bits stored to json sidecar
         sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
         with open(sidecar_file) as fo:
             sidecarjs = json.load(fo, strict=False)
+        if bits_stored:
+            sidecarjs['BitsStored'] = bits_stored
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
@@ -127,6 +134,17 @@ def proc_func(config, args):
         # write out updated json sidecar
         commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
     return refs
+
+def get_bits_stored(dicom_dir):
+    '''
+    Helper function to get Bits Stored (0028,0101) DICOM header
+    '''
+    for f in Path(dicom_dir).iterdir():
+        try:
+            ds = pydicom.dcmread(f)
+            return ds.get('BitsStored', None)
+        except InvalidDicomError as e:
+            logger.debug(e)
 
 def proc_anat(config, args):
     '''
