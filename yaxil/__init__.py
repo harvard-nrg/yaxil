@@ -536,8 +536,7 @@ def download(auth, label, scan_ids=None, project=None, aid=None,
     if r.status_code != requests.codes.ok:
         raise DownloadError(f'response not ok ({r.status_code} {r.reason}) from {r.url}')
     # create output directory
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
+    os.makedirs(out_dir, exist_ok=True)
     # keep response content in memory or write to a file (memory is obviously faster, but limited)
     if in_mem:
         content = io.BytesIO()

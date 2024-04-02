@@ -58,8 +58,7 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
     proc_fmap(config, args, refs)
 
 def check_dataset_description(bids_dir, bids_version='1.4.0', ds_type='raw'):
-    if not os.path.exists(bids_dir):
-        os.makedirs(bids_dir)
+    os.makedirs(bids_dir, exist_ok=True)
     ds_desc = os.path.join(bids_dir, 'dataset_description.json')
     if not os.path.exists(ds_desc):
         js = {
@@ -101,8 +100,7 @@ def proc_func(config, args):
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-        if not os.path.exists(sourcedata_dir):
-            os.makedirs(sourcedata_dir)
+        os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
@@ -171,8 +169,7 @@ def proc_anat(config, args):
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-        if not os.path.exists(sourcedata_dir):
-            os.makedirs(sourcedata_dir)
+        os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
@@ -254,8 +251,7 @@ def proc_dwi(config, args):
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-        if not os.path.exists(sourcedata_dir):
-            os.makedirs(sourcedata_dir)
+        os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
@@ -311,8 +307,7 @@ def proc_fmap(config, args, refs=None):
         )
         # download data to bids sourcedata directory
         sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-        if not os.path.exists(sourcedata_dir):
-            os.makedirs(sourcedata_dir)
+        os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
         args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
@@ -412,8 +407,7 @@ def convert(input, output, single_file=False):
     Run dcm2niix on input file
     '''
     dirname = os.path.dirname(output)
-    if not os.path.exists(dirname):
-        os.makedirs(dirname)
+    os.makedirs(dirname, exist_ok=True)
     basename = os.path.basename(output)
     basename = re.sub('.nii(.gz)?', '', basename)
     dcm2niix = commons.which('dcm2niix')
