@@ -103,7 +103,7 @@ def proc_func(config, args):
         os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -172,7 +172,7 @@ def proc_anat(config, args):
         os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
         # convert to nifti (edge cases for T1w_vNav_setter)
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -254,7 +254,7 @@ def proc_dwi(config, args):
         os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
@@ -310,7 +310,7 @@ def proc_fmap(config, args, refs=None):
         os.makedirs(sourcedata_dir, exist_ok=True)
         dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
         logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, in_mem=args.in_mem)
+        args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
         # convert to nifti
         fname = '{0}.nii.gz'.format(fbase)
         fmap_refs[ref] = os.path.join(f'ses-{ses}', scan['type'], fname)
