@@ -409,10 +409,13 @@ def _proc_fmap(scan, config, args, refs=None):
     # rename fieldmap images to BIDS file naming convention
     if scan['type'] == 'fmap':
         if scan.get('modality', None) == 'magnitude':
+            logger.debug('renaming fmap magnitude files')
             files = rename_fmap_magnitude(args.bids, fbase)
         elif scan.get('modality', None) == 'phase':
+            logger.debug('renaming fmap phase files')
             files = rename_fmap_phase(args.bids, fbase)
         elif scan.get('modality', None) == 'phasediff':
+            logger.debug('renaming phasediff file')
             files = rename_fmap_phasediff(args.bids, fbase)
     # add xnat source information to json sidecar
     for sidecar_file in files['json']:
@@ -488,29 +491,37 @@ def rename_fmap_phase(bids_base, basename):
                     f'phase_e{echo}_ph',
                     f'phase{echo}'
                 )
-                logger.debug('renaming {src} to {dst}')
+                logger.debug(f'renaming {src} to {dst}')
                 os.rename(src, dst)
                 files[ext].append(dst)
     return files
+
+class FmapError(Exception):
+    pass
 
 def rename_fmap_phasediff(bids_base, basename):
     '''
     Rename phasediff fieldmap files to BIDS
     '''
-    files = defaultdict(list)
+    result = defaultdict(list)
     for ext in ['nii.gz', 'json']:
-        for echo in [1, 2]:
-            fname = f'{basename}_e{echo}_ph.{ext}'
-            src = os.path.join(bids_base, 'fmap', fname)
-            if os.path.exists(src):
-                dst = src.replace(
-                    f'phasediff_e{echo}_ph',
-                    f'phasediff{echo}'
-                )
-                logger.debug('renaming {src} to {dst}')
-                os.rename(src, dst)
-                files[ext].append(dst)
-    return files
+        path = Path(bids_base, 'fmap')
+        expr = f'{basename}_e*_ph.{ext}'
+        files = list(path.glob(expr))
+        numfiles = len(files)
+        if numfiles != 1:
+            raise FmapError(f'found {numfiles} fmap files from {expr}')
+        source = files.pop()
+        fname = re.sub(
+            f'phasediff_e\d+_ph',
+            f'phasediff',
+            source.name
+        )
+        destination = Path(source.parent, fname)
+        logger.debug(f'renaming {source} to {destination}')
+        source.rename(destination)
+        result[ext].append(destination)
+    return result
 
 def convert(input, output, single_file=False):
     '''
