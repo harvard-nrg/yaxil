@@ -119,12 +119,12 @@ def _proc_func_me(scan, config, args):
     dicom_fbase = re.sub('_echo-%e', '', fbase)
     dicom_dir = os.path.join(sourcedata_dir, f'{dicom_fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    #args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
     # convert dicoms to nifti
     fname = '{0}.nii.gz'.format(fbase)
     fullfile = os.path.join(args.bids, scan['type'], fname)
     logger.info('converting %s to %s', dicom_dir, fullfile)
-    convert(dicom_dir, fullfile)
+    #convert(dicom_dir, fullfile)
     # find all nifti files
     wildcard = re.sub('_echo-%e', '_echo-*', f'{fbase}.nii.gz')
     expr = os.path.join(args.bids, scan['type'], wildcard)
@@ -437,7 +437,7 @@ def _proc_fmap(scan, config, args, refs=None):
                     if 'IntendedFor' not in sidecarjs:
                         sidecarjs['IntendedFor'] = list()
                     if refs[intended] not in sidecarjs['IntendedFor']:
-                        sidecarjs['IntendedFor'] = refs[intended]
+                        sidecarjs['IntendedFor'].extend(refs[intended])
             logger.info('writing file %s', sidecar_file)
         # write out updated json sidecar
         commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
