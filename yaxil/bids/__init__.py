@@ -1,11 +1,11 @@
 import re
 import os
 import sys
-import glob
 import json
 import string
 import logging
 import pydicom
+from glob import glob
 import subprocess as sp
 from pathlib import Path
 import yaxil.commons as commons
@@ -15,7 +15,7 @@ from pydicom.errors import InvalidDicomError
 logger = logging.getLogger(__name__)
 
 # bids legal characters for sub, ses, and task
-legal = re.compile('[^a-zA-Z0-9]')
+legal = re.compile(r'[^a-zA-Z0-9]')
 
 def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=False):
     '''
@@ -80,22 +80,31 @@ def proc_func(config, args):
     refs = dict()
     for scan in iterconfig(config, 'func'):
         ref = scan.get('id', None)
-        if scan.get('multiecho', False):
-            files = _proc_func_me(scan, config, args)
-        else:
-            files = _proc_func_se(scan, config, args)
+        files = _proc_func(scan, config, args)
         refs[ref] = files
     return refs
 
-def _proc_func_me(scan, config, args):
-    '''
-    Helper for multi-echo functional data
-    '''
-    refs = list()
-    logger.info('processing scan as multiecho scan')
+def _restem(source, newstem):
+    parent = source.parent
+    suffix = ''.join(source.suffixes)
+    oldstem = re.sub('.nii', '', source.stem)
+    source_sidecar = Path(parent, f'{oldstem}.json')
+    destination = Path(parent, f'{newstem}{suffix}')
+    destination_sidecar = Path(parent, f'{newstem}.json')
+    logger.info(f'renaming {source} to {destination}')
+    logger.info(f'renaming {source_sidecar} to {destination_sidecar}')
+    if destination.exists():
+        raise FileExistsError(destination)
+    source.rename(destination)
+    if destination_sidecar.exists():
+        raise FileExistsError(destination_sidecar)
+    source_sidecar.rename(destination_sidecar)
+    return destination
+
+def _proc_func(scan, config, args):
+    files = list()
     sub = legal.sub('', args.subject)
     ses = legal.sub('', args.session)
-    ref = scan.get('id', None)
     templ = 'sub-${sub}_ses-${ses}'
     if 'task' in scan:
         templ += '_task-${task}'
@@ -107,7 +116,7 @@ def _proc_func_me(scan, config, args):
         templ += '_run-${run}'
     templ += '_echo-%e_${modality}'
     templ = string.Template(templ)
-    fbase = templ.safe_substitute(
+    stem = templ.safe_substitute(
         sub=sub,
         ses=ses,
         task=scan.get('task', None),
@@ -116,37 +125,53 @@ def _proc_func_me(scan, config, args):
         direction=scan.get('direction', None),
         modality=scan.get('modality', None)
     )
+    stem_noecho = re.sub('_echo-%e', '', stem)
     # download data to bids sourcedata directory
-    sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-    os.makedirs(sourcedata_dir, exist_ok=True)
-    dicom_fbase = re.sub('_echo-%e', '', fbase)
-    dicom_dir = os.path.join(sourcedata_dir, f'{dicom_fbase}.dicom')
-    logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    sourcedata_dir = Path(args.sourcedata, scan['type'])
+    sourcedata_dir.mkdir(parents=True, exist_ok=True)
+    dicom_dir = Path(sourcedata_dir, f'{stem_noecho}.dicom')
+    scanid = scan['scan']
+    logger.info(f'downloading session={args.session}, scan={scanid}, loc={dicom_dir}')
+    args.xnat.download(
+        args.session,
+        [
+            scanid
+        ],
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
+    suffix = '.nii.gz'
     # convert dicoms to nifti
-    fname = '{0}.nii.gz'.format(fbase)
-    fullfile = os.path.join(args.bids, scan['type'], fname)
-    logger.info('converting %s to %s', dicom_dir, fullfile)
+    scandir = Path(args.bids, scan['type'])
+    fname = f'{stem}{suffix}'
+    fullfile = Path(scandir, fname)
+    logger.info(f'converting {dicom_dir} to {fullfile}')
     convert(dicom_dir, fullfile)
-    # find all nifti files
-    wildcard = re.sub('_echo-%e', '_echo-*', f'{fbase}.nii.gz')
-    expr = os.path.join(args.bids, scan['type'], wildcard)
-    # add nifti files to a list to be returned for any intended-for
-    logger.debug(f'running glob expression {expr}')
-    for nifti in glob.glob(expr):
-        nifti = Path(nifti)
-        refs.append(os.path.join(f'ses-{ses}', scan['type'], nifti.name))
+    # remove echo entity if the current scan is a single echo
+    wildcard = re.sub('_echo-%e', '_echo-*', fname)
+    logger.info(f'running glob {wildcard} on {scandir} for niftis')
+    niftis = list(scandir.glob(wildcard))
+    if len(niftis) == 1:
+        niftis = [
+            _restem(niftis.pop(), stem_noecho)
+        ]
+        stem = stem_noecho
+    # compile list of files
+    for nifti in niftis:
+        relpath = Path(f'ses-{ses}', scan['type'], nifti.name)
+        files.append(str(relpath))
     # some applications need access to the number of stored bits
     bits_stored = get_bits_stored(dicom_dir)
     # add xnat source information and bits stored to json sidecar
-    wildcard = re.sub('_echo-%e', '_echo-*', f'{fbase}.json')
-    expr = os.path.join(args.bids, scan['type'], wildcard)
-    for sidecar_file in glob.glob(expr):
-        with open(sidecar_file) as fo:
-            sidecarjs = json.load(fo, strict=False)
+    wildcard = re.sub('_echo-%e', '_echo-*', f'{stem}.json')
+    logger.info(f'running glob {wildcard} on {scandir} for sidecars')
+    for sidecar in scandir.glob(wildcard):
+        with open(sidecar) as fo:
+            js = json.load(fo, strict=False)
         if bits_stored:
-            sidecarjs['BitsStored'] = bits_stored
-        sidecarjs['DataSource'] = {
+            js['BitsStored'] = bits_stored
+        js['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
                 'project': args.project,
@@ -158,70 +183,14 @@ def _proc_func_me(scan, config, args):
             }
         }
         # write out updated json sidecar
-        commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
-    return refs
-
-def _proc_func_se(scan, config, args):
-    '''
-    Helper for single-echo functional data
-    '''
-    refs = list()
-    sub = legal.sub('', args.subject)
-    ses = legal.sub('', args.session)
-    templ = 'sub-${sub}_ses-${ses}'
-    if 'task' in scan:
-        templ += '_task-${task}'
-    if 'acquisition' in scan:
-        templ += '_acq-${acquisition}'
-    if 'direction' in scan:
-        templ += '_dir-${direction}'
-    if 'run' in scan:
-        templ += '_run-${run}'
-    templ += '_${modality}'
-    templ = string.Template(templ)
-    fbase = templ.safe_substitute(
-        sub=sub,
-        ses=ses,
-        task=scan.get('task', None),
-        acquisition=scan.get('acquisition', None),
-        run=scan.get('run', None),
-        direction=scan.get('direction', None),
-        modality=scan.get('modality', None)
-    )
-    # download data to bids sourcedata directory
-    sourcedata_dir = os.path.join(args.sourcedata, scan['type'])
-    os.makedirs(sourcedata_dir, exist_ok=True)
-    dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
-    logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
-    # convert to nifti
-    fname = '{0}.nii.gz'.format(fbase)
-    refs.append(os.path.join(f'ses-{ses}', scan['type'], fname))
-    fullfile = os.path.join(args.bids, scan['type'], fname)
-    logger.info('converting %s to %s', dicom_dir, fullfile)
-    convert(dicom_dir, fullfile)
-    # some applications need access to the number of stored bits
-    bits_stored = get_bits_stored(dicom_dir)
-    # add xnat source information and bits stored to json sidecar
-    sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
-    with open(sidecar_file) as fo:
-        sidecarjs = json.load(fo, strict=False)
-    if bits_stored:
-        sidecarjs['BitsStored'] = bits_stored
-    sidecarjs['DataSource'] = {
-        'application/x-xnat': {
-            'url': args.xnat.url,
-            'project': args.project,
-            'subject': args.subject,
-            'subject_id': args.subject_id,
-            'experiment': args.session,
-            'experiment_id': args.session_id,
-            'scan': scan['scan']
-        }
-    }
-    # write out updated json sidecar
-    commons.atomic_write(sidecar_file, json.dumps(sidecarjs, indent=2))
-    return refs
+        commons.atomic_write(
+            sidecar,
+            json.dumps(
+                js,
+                indent=2
+            )
+        )
+    return files
 
 def get_bits_stored(dicom_dir):
     '''
