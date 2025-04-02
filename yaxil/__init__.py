@@ -365,7 +365,7 @@ Accession ID ``subject_id``, Subject label ``subject_label``, and archive date
 ``archived_date``.
 '''
 
-def experiments(auth, label=None, project=None, subject=None, daterange=None):
+def experiments(auth, label=None, project=None, subject=None, daterange=None, insert_daterange=None):
     '''
     Retrieve Experiment tuples for experiments returned by this function.
 
@@ -388,6 +388,8 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
     :type subject: :mod:`yaxil.Subject`
     :param daterange: Start and end dates
     :type daterange: tuple
+    :param insert_daterange: Insertion start and end dates
+    :type insert_daterange: tuple
     :returns: Experiment object
     :rtype: :mod:`yaxil.Experiment`
     '''
@@ -418,6 +420,10 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None):
         start = arrow.get(daterange[0]).format('MM/DD/YYYY')
         stop = arrow.get(daterange[1]).format('MM/DD/YYYY')
         payload['date'] = '{0}-{1}'.format(start, stop)
+    if insert_daterange:
+        start = arrow.get(insert_daterange[0]).format('MM/DD/YYYY')
+        stop = arrow.get(insert_daterange[1]).format('MM/DD/YYYY')
+        payload['insert_date'] = '{0}-{1}'.format(start, stop)
     # submit request
     r = requests.get(
         url,
