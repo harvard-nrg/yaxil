@@ -94,17 +94,10 @@ that's been thrown at ``ArcGet.py``. This should get you started
             run: 2
             task: LANG
   fmap:
-      magnitude1:
+      magnitude:
           - scan: 40
             run: 1
             direction: ap
-            intended for:
-              - lang1
-              - lang2
-      magnitude2:
-          - scan: 41
-            run: 1
-            direction: pa
             intended for:
               - lang1
               - lang2
@@ -154,8 +147,8 @@ The only tricky part is how to explain to ``ArcGet.py`` how it should insert
 the ``IntendedFor`` into the ``fmap`` JSON sidecar files. Here's how that works. 
 For any ``fmap`` scan declared in your configuration file, you can insert an 
 ``intended for`` field, followed by a list of references to any ``id`` fields 
-for any other scan. There are several examples of this in the configuration file 
-shown above.
+for any other scan. There are several examples of this in the configuration 
+file shown above.
 
 Usage
 ^^^^^
@@ -164,6 +157,6 @@ your data downloaded and converted into a proper BIDS structure
 
 .. code-block:: python
 
-  ArcGet.py -a xnatastic -s LABEL -c bids.yaml -f bids -o ./bids
+  ArcGet.py -a xnatastic -s <session> -c bids.yaml -f bids -o ./bids
 
 Enjoy.
