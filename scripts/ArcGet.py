@@ -128,7 +128,7 @@ def main():
 
 def generate_bids_config(scans):
     config = col.defaultdict(lambda: col.defaultdict(list))
-    regex = re.compile('([a-zA-Z]+)_?(\d+)?')
+    regex = re.compile(r'([a-zA-Z]+)_?(\d+)?')
     for scan_id,scan_meta in iter(scans.items()):
         note = scan_meta['note']
         match = regex.match(note)
@@ -139,7 +139,7 @@ def generate_bids_config(scans):
         if scan_meta['type'] == 'BOLD':
             type_ = 'func'
             modality = 'bold'
-        elif re.match('[#]?ANAT_T2*', scan_meta['note']):
+        elif re.match(r'[#]?ANAT_T2*', scan_meta['note']):
             type_ = 'anat'
             modality = 'T2w'
         elif scan_meta['note'].startswith('ANAT'):
