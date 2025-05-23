@@ -23,21 +23,34 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
     '''
     # get session and subject labels from scan metadata
     _item = next(iter(scans_metadata))
-    project,session,subject = _item['session_project'],_item['session_label'],_item['subject_label']
-    session_id,subject_id = _item['session_id'],_item['subject_id']
+    project, subject, session = (
+        _item['session_project'],
+        _item['subject_label'],
+        _item['session_label']
+    )
+    subject_id, session_id = (
+        _item['subject_id'],
+        _item['session_id']
+    )
+
+    # take user-supplied subject and session for file naming
+    bids_sub = config.get('sub', subject)
+    bids_ses = config.get('ses', session)
+    
     # check for dataset_description.json and create it if necessary
     check_dataset_description(out_base)
+
     # define bids and sourcedata base directories
     sourcedata_base = os.path.join(
         out_base,
         'sourcedata',
-        'sub-{0}'.format(legal.sub('', subject)),
-        'ses-{0}'.format(legal.sub('', session))
+        'sub-{0}'.format(legal.sub('', bids_sub)),
+        'ses-{0}'.format(legal.sub('', bids_ses))
     )
     bids_base = os.path.join(
         out_base,
-        'sub-{0}'.format(legal.sub('', subject)),
-        'ses-{0}'.format(legal.sub('', session))
+        'sub-{0}'.format(legal.sub('', bids_sub)),
+        'ses-{0}'.format(legal.sub('', bids_ses))
     )
     # put arguments in a struct for convenience
     args = commons.struct(
@@ -47,6 +60,8 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
         session=session,
         session_id=session_id,
         project=project,
+        bids_sub=bids_sub,
+        bids_ses=bids_ses,
         bids=bids_base,
         out_base=out_base,
         sourcedata=sourcedata_base,
@@ -103,8 +118,8 @@ def _restem(source, newstem):
 
 def _proc_func(scan, config, args):
     files = list()
-    sub = legal.sub('', args.subject)
-    ses = legal.sub('', args.session)
+    sub = legal.sub('', args.bids_sub)
+    ses = legal.sub('', args.bids_ses)
     templ = 'sub-${sub}_ses-${ses}'
     if 'task' in scan:
         templ += '_task-${task}'
@@ -216,8 +231,8 @@ def proc_anat(config, args):
 
 def _proc_anat(scan, config, args):
     refs = list()
-    sub = legal.sub('', args.subject)
-    ses = legal.sub('', args.session)
+    sub = legal.sub('', args.bids_sub)
+    ses = legal.sub('', args.bids_ses)
     templ = 'sub-${sub}_ses-${ses}'
     if 'acquisition' in scan:
         templ += '_acq-${acquisition}'
@@ -301,8 +316,8 @@ def proc_dwi(config, args):
 
 def _proc_dwi(scan, config, args):
     refs = list() 
-    sub = legal.sub('', args.subject)
-    ses = legal.sub('', args.session)
+    sub = legal.sub('', args.bids_sub)
+    ses = legal.sub('', args.bids_ses)
     templ = 'sub-${sub}_ses-${ses}'
     if 'acquisition' in scan:
         templ += '_acq-${acquisition}'
@@ -361,8 +376,8 @@ def proc_fmap(config, args, refs=None):
     return refs
 
 def _proc_fmap(scan, config, args, refs=None):
-    sub = legal.sub('', args.subject)
-    ses = legal.sub('', args.session)
+    sub = legal.sub('', args.bids_sub)
+    ses = legal.sub('', args.bids_ses)
     templ = 'sub-${sub}_ses-${ses}'
     if 'acquisition' in scan:
         templ += '_acq-${acquisition}'

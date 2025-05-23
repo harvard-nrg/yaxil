@@ -64,6 +64,8 @@ that's been thrown at ``ArcGet.py``. This should get you started
 
 .. code-block:: yaml
 
+  sub: foo # by default, the XNAT Subject label will be used
+  ses: bar # by default, the XNAT MR Session label will be used
   anat:
       T1w:
           - scan: 6
