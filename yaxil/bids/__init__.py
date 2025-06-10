@@ -162,7 +162,7 @@ def _proc_func(scan, config, args):
     fname = f'{stem}{suffix}'
     fullfile = Path(scandir, fname)
     logger.info(f'converting {dicom_dir} to {fullfile}')
-    convert(dicom_dir, fullfile)
+    convert(dicom_dir, fullfile, comments='')
     # remove echo entity if the current scan is a single echo
     wildcard = re.sub('_echo-%e', '_echo-*', fname)
     logger.info(f'running glob {wildcard} on {scandir} for niftis')
@@ -264,7 +264,7 @@ def _proc_anat(scan, config, args):
         fullfile = fullfile.replace('_T1vnav', '_split-%r_T1vnav')
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
-            convert(f, fullfile, single_file=True)
+            convert(f, fullfile, single_file=True, comments='')
         ffbase = re.sub('.nii(.gz)?', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
@@ -273,13 +273,13 @@ def _proc_anat(scan, config, args):
         fullfile = fullfile.replace('_T2vnav', '_split-%r_T2vnav')
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
-            convert(f, fullfile, single_file=True)
+            convert(f, fullfile, single_file=True, comments='')
         ffbase = re.sub('.nii(.gz)?', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
         sidecar_files = glob(expr)
     else:
-        convert(dicom_dir, fullfile)
+        convert(dicom_dir, fullfile, comments='')
         sidecar_files = [
             os.path.join(args.bids, scan['type'], fbase + '.json')
         ]
@@ -347,7 +347,7 @@ def _proc_dwi(scan, config, args):
     fullfile = os.path.join(args.bids, scan['type'], fname)
     logger.info('converting %s to %s', dicom_dir, fullfile)
     modality = scan.get('modality', None)
-    convert(dicom_dir, fullfile)
+    convert(dicom_dir, fullfile, comments='')
     sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
     # add xnat source information to json sidecar files
     logger.debug('adding provenance to %s', sidecar_file)
@@ -405,7 +405,7 @@ def _proc_fmap(scan, config, args, refs=None):
     fname = '{0}.nii.gz'.format(fbase)
     fullfile = os.path.join(args.bids, scan['type'], fname)
     logger.info('converting %s to %s', dicom_dir, fullfile)
-    convert(dicom_dir, fullfile)
+    convert(dicom_dir, fullfile, comments='')
     # rename fieldmap images to BIDS file naming convention
     modality = scan.get('modality', None)
     if scan['type'] == 'fmap':
@@ -534,7 +534,7 @@ def iterconfig(config, scan_type):
                 })
                 yield scan
 
-def convert(input, output, single_file=False):
+def convert(input, output, single_file=False, comments=None):
     '''
     Run dcm2niix on input file
     '''
@@ -549,6 +549,10 @@ def convert(input, output, single_file=False):
     if single_file:
         cmd.extend([
             '-s', 'y'
+        ])
+    if comments is not None:
+        cmd.extend([
+            '-c', comments
         ])
     cmd.extend([
         '-b', 'y',
