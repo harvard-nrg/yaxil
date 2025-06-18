@@ -6,6 +6,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 requires = [
     'requests',
     'pydicom',
+    'nibabel',
     'natsort',
     'arrow',
     'pyaml',

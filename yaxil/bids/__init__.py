@@ -5,12 +5,16 @@ import json
 import string
 import logging
 import pydicom
+import warnings
 from glob import glob
 import subprocess as sp
 from pathlib import Path
+from pydicom.tag import Tag
 import yaxil.commons as commons
 from collections import defaultdict
 from pydicom.errors import InvalidDicomError
+with warnings.catch_warnings(action='ignore'):
+    from nibabel.nicom import csareader
 
 logger = logging.getLogger(__name__)
 
@@ -176,17 +180,20 @@ def _proc_func(scan, config, args):
     for nifti in niftis:
         relpath = Path(f'ses-{ses}', scan['type'], nifti.name)
         files.append(str(relpath))
-    # some applications need access to the number of stored bits
+    # get some additional information not carried over to json sidecar 
     bits_stored = get_bits_stored(dicom_dir)
+    abs_table_position = get_abs_table_position(dicom_dir)
     # add xnat source information and bits stored to json sidecar
     wildcard = re.sub('_echo-%e', '_echo-*', f'{stem}.json')
     logger.info(f'running glob {wildcard} on {scandir} for sidecars')
-    for sidecar in scandir.glob(wildcard):
-        with open(sidecar) as fo:
-            js = json.load(fo, strict=False)
+    for sidecar_file in scandir.glob(wildcard):
+        with open(sidecar_file) as fo:
+            sidecarjs = json.load(fo, strict=False)
         if bits_stored:
-            js['BitsStored'] = bits_stored
-        js['DataSource'] = {
+            sidecarjs['BitsStored'] = bits_stored
+        if abs_table_position:
+            sidecarjs['ImaAbsTablePosition'] = abs_table_position
+        sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
                 'project': args.project,
@@ -199,9 +206,9 @@ def _proc_func(scan, config, args):
         }
         # write out updated json sidecar
         commons.atomic_write(
-            sidecar,
+            sidecar_file,
             json.dumps(
-                js,
+                sidecarjs,
                 indent=2
             )
         )
@@ -217,6 +224,43 @@ def get_bits_stored(dicom_dir):
             return ds.get('BitsStored', None)
         except InvalidDicomError as e:
             logger.debug(e)
+
+def get_abs_table_position(dicom_dir):
+    '''
+    Helper function to get absolute table position from DICOM header
+    '''
+    for f in Path(dicom_dir).iterdir():
+        try:
+            ds = pydicom.dcmread(f)
+            data = csa_image_header_info(ds)
+            return data['tags']['ImaAbsTablePosition']['items']
+        except InvalidDicomError as e:
+            logger.debug(e)
+        except CSAReaderError as e:
+            logger.info(f'could not determine table position from {f.name}')
+            logger.debug(e, exc_info=True)
+            return None
+        except Exception as e:
+            logger.info(f'unexpected error reading table position')
+            logger.debug(e, exc_info=True)
+            return None
+    return None
+
+def csa_image_header_info(ds):
+    tag = Tag(0x0029, 0x1010)
+    if tag not in ds:
+        raise MissingSiemensCSAImageHeader(tag)
+    try:
+        result = csareader.read(ds[tag].value)
+    except Exception as e:
+        raise CSAReaderError(e) from e
+    return result
+
+class CSAReaderError(Exception):
+    pass
+
+class MissingSiemensCSAImageHeader(CSAReaderError):
+    pass
 
 def proc_anat(config, args):
     '''
@@ -283,11 +327,18 @@ def _proc_anat(scan, config, args):
         sidecar_files = [
             os.path.join(args.bids, scan['type'], fbase + '.json')
         ]
-    # add xnat source information to json sidecar files
+    # get some additional information not carried over to json sidecar 
+    bits_stored = get_bits_stored(dicom_dir)
+    abs_table_position = get_abs_table_position(dicom_dir)
+    # add additional data to json sidecar
     for sidecar_file in sidecar_files:
         logger.debug('adding provenance to %s', sidecar_file)
         with open(sidecar_file) as fo:
             sidecarjs = json.load(fo, strict=False)
+        if bits_stored:
+            sidecarjs['BitsStored'] = bits_stored
+        if abs_table_position:
+            sidecarjs['ImaAbsTablePosition'] = abs_table_position
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
@@ -348,11 +399,18 @@ def _proc_dwi(scan, config, args):
     logger.info('converting %s to %s', dicom_dir, fullfile)
     modality = scan.get('modality', None)
     convert(dicom_dir, fullfile, comments='')
-    sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
+    # get some additional information not carried over to json sidecar 
+    bits_stored = get_bits_stored(dicom_dir)
+    abs_table_position = get_abs_table_position(dicom_dir)
     # add xnat source information to json sidecar files
+    sidecar_file = os.path.join(args.bids, scan['type'], fbase + '.json')
     logger.debug('adding provenance to %s', sidecar_file)
     with open(sidecar_file) as fo:
         sidecarjs = json.load(fo, strict=False)
+    if bits_stored:
+        sidecarjs['BitsStored'] = bits_stored
+    if abs_table_position:
+        sidecarjs['ImaAbsTablePosition'] = abs_table_position
     sidecarjs['DataSource'] = {
         'application/x-xnat': {
             'url': args.xnat.url,
@@ -419,10 +477,17 @@ def _proc_fmap(scan, config, args, refs=None):
             files = _fmap_epi(args.bids, fbase)
         else:
             raise FmapError(f'unexpected fmap modality {modality}')
+    # get some additional information not carried over to json sidecar 
+    bits_stored = get_bits_stored(dicom_dir)
+    abs_table_position = get_abs_table_position(dicom_dir)
     # add xnat source information to json sidecar
     for sidecar_file in files['json']:
         with open(sidecar_file) as fo:
             sidecarjs = json.load(fo, strict=False)
+        if bits_stored:
+            sidecarjs['BitsStored'] = bits_stored
+        if abs_table_position:
+            sidecarjs['ImaAbsTablePosition'] = abs_table_position
         sidecarjs['DataSource'] = {
             'application/x-xnat': {
                 'url': args.xnat.url,
