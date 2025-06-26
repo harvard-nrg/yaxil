@@ -13,7 +13,8 @@ from pydicom.tag import Tag
 import yaxil.commons as commons
 from collections import defaultdict
 from pydicom.errors import InvalidDicomError
-with warnings.catch_warnings(action='ignore'):
+with warnings.catch_warnings():
+    warnings.simplefilter('ignore')
     from nibabel.nicom import csareader
 
 logger = logging.getLogger(__name__)
@@ -573,7 +574,7 @@ def _fmap_phasediff(bids_base, basename):
             raise FmapError(f'found {numfiles} fmap files from {expr}')
         source = files.pop()
         fname = re.sub(
-            f'phasediff_e\d+_ph',
+            rf'phasediff_e\d+_ph',
             f'phasediff',
             source.name
         )
