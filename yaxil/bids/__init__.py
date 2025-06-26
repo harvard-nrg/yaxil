@@ -628,5 +628,6 @@ def convert(input, output, single_file=False, comments=None):
         input
     ])
     logger.debug(cmd)
-    sp.check_output(cmd)
+    output = sp.check_output(cmd, stderr=sp.PIPE)
+    logger.debug(output.decode())
 
