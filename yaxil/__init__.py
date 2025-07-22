@@ -777,12 +777,14 @@ def mrscans(auth, label=None, scan_ids=None, project=None, experiment=None):
         if scan_ids == None or result['xnat:mrscandata/id'] in scan_ids:
             data = dict()
             for k,v in iter(mrscans.columns.items()):
-                data[v] = result[k]
+                if k in result:
+                    data[v] = result[k]
             yield data
 mrscans.columns = {
     "ID": "ID",
     "insert_date": "date_archived",
     "insert_user": "archiver",
+    "coil": "coil",
     "xnat:mrsessiondata/operator": "operator",
     "xnat:mrscandata/id": "id",
     "xnat:mrscandata/quality": "quality",
