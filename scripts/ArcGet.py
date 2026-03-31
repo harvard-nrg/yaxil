@@ -166,8 +166,12 @@ class ConfigGeneratorError(Exception):
 def find(scans_mdata, targets, key):
     info = dict()
     for scan_mdata in scans_mdata:
-        if scan_mdata[key] in targets:
-            info[scan_mdata['id']] = scan_mdata
+        actual = scan_mdata[key]
+        for target in targets:
+            if target.startswith('re:') and re.match(target[3:], actual):
+                info[scan_mdata['id']] = scan_mdata
+            elif target == actual:
+                info[scan_mdata['id']] = scan_mdata
     return info
 
 def splitarg(args):

@@ -37,6 +37,13 @@ If you know the tasks that were coded into the scan notes field, use the
 
   ArcGet.py -a xnatastic -s LABEL -k ANAT1 REST1 -o ./dicoms
 
+If you need to specify a regular expression to ``-r|--scans``, ``-t|--types``,
+or ``-k|--tasks`` you can prefix the argument value with ``re:``
+
+.. code-block:: bash
+
+  ArcGet.py -a xnatastic -s LABEL -k 're:^ANAT\d+$' 're:.*REST.*' -o ./dicoms
+ 
 This functionality should more or less cover what you already know and love from 
 classic ``ArcGet``.
 
