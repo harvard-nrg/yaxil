@@ -168,7 +168,7 @@ def find(scans_mdata, targets, key):
     for scan_mdata in scans_mdata:
         actual = scan_mdata[key]
         for target in targets:
-            if target.startswith('re:') and re.match(target[3:], actual):
+            if target.startswith('re:') and re.search(target[3:], actual):
                 info[scan_mdata['id']] = scan_mdata
             elif target == actual:
                 info[scan_mdata['id']] = scan_mdata
