@@ -32,17 +32,17 @@ def main():
 
     # --session deprecation warning
     if args.session:
-        logger.warn('DEPRECATION WARNING: use -l|--label instead of -s|--session')
+        logger.warning('DEPRECATION WARNING: use -l|--label instead of -s|--session')
         args.label = args.session
 
     # --raw-types deprecation warning
     if args.raw_types:
-        logger.warn('DEPRECATION WARNING: use --scans instead of -r|--raw-types')
+        logger.warning('DEPRECATION WARNING: use --scans instead of -r|--raw-types')
         args.scans = args.raw_types
 
     # --bids deprecation warning
     if args.bids:
-        logger.warn('DEPRECATION WARNING: use -f|--output-format bids instead of --bids')
+        logger.warning('DEPRECATION WARNING: use -f|--output-format bids instead of --bids')
         args.output_format = 'bids'
 
     if args.insecure:
