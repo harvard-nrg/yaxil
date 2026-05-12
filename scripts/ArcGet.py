@@ -50,8 +50,7 @@ def main():
 
     auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
-    # if a JSESSION is provided, use it instead of creating another JSESSION
-    # otherwise, start a new JSESSION
+    # if a JSESSION is provided, use it
     if args.jsession:
         auth = auth._replace(cookie={'JSESSIONID': args.jsession})
 
