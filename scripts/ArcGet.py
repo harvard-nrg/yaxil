@@ -50,24 +50,12 @@ def main():
 
     auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
-    # resolve --accession to session label and project
-    if args.accession:
-        details = yaxil.__experiment_details(auth, args.accession)
-        args.project = details['session_project']
-        args.label = details['session_label']
-        logger.debug(f'resolved {args.accession} to project={args.project}, session={args.label}')
+    # if a JSESSION is provided, use it instead of creating another JSESSION
+    # otherwise, start a new JSESSION
+    if args.jsession:
+        auth = auth._replace(cookie={'JSESSIONID': args.jsession})
 
     args.output_dir = os.path.expanduser(args.output_dir)
-
-    # append additional XNAT 1.4 directories to output directory
-    if args.output_format == '1.4':
-        args.output_dir = os.path.join(args.output_dir, args.label, 'RAW')
-
-    # print readme and exit
-    if args.readme:
-        content = readme(auth, args.label, args.project)
-        print(content)
-        sys.exit(0)
 
     # to maintain backwards compatibility, split -r, -c, or -k arguments
     # that are comma-separated
@@ -82,6 +70,23 @@ def main():
             raise Exception('could not find dcm2niix')
 
     with yaxil.session(auth) as sess:
+        # resolve --accession to session label and project
+        if args.accession:
+            details = yaxil.__experiment_details(sess._auth, args.accession)
+            args.project = details['session_project']
+            args.label = details['session_label']
+            logger.debug(f'resolved {args.accession} to project={args.project}, session={args.label}')
+
+        # append additional XNAT 1.4 directories to output directory
+        if args.output_format == '1.4':
+            args.output_dir = os.path.join(args.output_dir, args.label, 'RAW')
+
+        # print readme and exit
+        if args.readme:
+            content = readme(sess._auth, args.label, args.project)
+            print(content)
+            sys.exit(0)
+
         # request all scan metadata for this mr session
         scans_meta = list(sess.scans(args.label, project=args.project))
         # download all scans if no scans, types, or tasks were requested
@@ -246,6 +251,8 @@ def parse_args():
         help='Output scan summary in parsable format')
     parser.add_argument('--in-mem', action='store_true',
         help='Keep XNAT response in memory for speed')
+    parser.add_argument('--jsession',
+        help='XNAT JSESSIONID cookie to reuse an existing session')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     parser.add_argument('--version', action='version', version=__version__.__version__)

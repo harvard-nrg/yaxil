@@ -43,9 +43,12 @@ class Session(object):
         return yaxil.history(self._auth, *args, **kwargs)
 
     def __enter__(self):
-        self._auth = yaxil.start_session(self._auth)
+        self._session_owned = self._auth.cookie is None
+        if self._session_owned:
+            self._auth = yaxil.start_session(self._auth)
         return self
 
     def __exit__(self, type, value, traceback):
-        yaxil.end_session(self._auth)
+        if self._session_owned:
+            yaxil.end_session(self._auth)
         return

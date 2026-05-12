@@ -188,7 +188,7 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
             password=password,
             cookie=None
         )
-        return start_session(obj)
+        return obj
     # Third, look for authentication data in environment variables
     host = os.environ.get('XNAT_HOST', None)
     username = os.environ.get('XNAT_USER', None)
@@ -206,7 +206,7 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
             password=password,
             cookie=None
         )
-        return start_session(obj)
+        return obj
     raise AuthError('you must provide authentication data using xnat_auth, command line, or environment variables')
 
 def auth(alias=None, url=None, cfg="~/.xnat_auth"):
@@ -273,7 +273,7 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
         password=password,
         cookie=None
     )
-    return start_session(obj)
+    return obj
 
 Subject = col.namedtuple('Subject', [
     'uri',
