@@ -50,9 +50,10 @@ def main():
 
     auth = yaxil.auth2(args.alias, args.host, args.username, args.password)
 
-    # if a JSESSION is provided, use it
-    if args.jsession:
-        auth = auth._replace(cookie={'JSESSIONID': args.jsession})
+    # if XNAT_JSESSION is set in the environment, use it to reuse an existing session
+    jsession = os.environ.get('XNAT_JSESSION')
+    if jsession:
+        auth = auth._replace(cookie={'JSESSIONID': jsession})
 
     args.output_dir = os.path.expanduser(args.output_dir)
 
@@ -250,8 +251,6 @@ def parse_args():
         help='Output scan summary in parsable format')
     parser.add_argument('--in-mem', action='store_true',
         help='Keep XNAT response in memory for speed')
-    parser.add_argument('--jsession',
-        help='XNAT JSESSIONID cookie to reuse an existing session')
     parser.add_argument('--debug', action='store_true',
         help='Enable debug messages')
     parser.add_argument('--version', action='version', version=__version__.__version__)
