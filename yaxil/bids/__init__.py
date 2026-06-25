@@ -157,6 +157,7 @@ def _proc_func(scan, config, args):
         [
             scanid
         ],
+        project=args.project,
         out_dir=dicom_dir,
         attempts=3,
         in_mem=args.in_mem
@@ -297,7 +298,16 @@ def _proc_anat(scan, config, args):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti (edge cases for T1w_vNav_setter)
     fname = '{0}.nii.gz'.format(fbase)
     refs.append(os.path.join(f'ses-{ses}', scan['type'], fname))
@@ -392,7 +402,16 @@ def _proc_dwi(scan, config, args):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti
     fname = '{0}.nii.gz'.format(fbase)
     refs.append(os.path.join(f'ses-{ses}', scan['type'], fname))
@@ -459,7 +478,16 @@ def _proc_fmap(scan, config, args, refs=None):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti
     fname = '{0}.nii.gz'.format(fbase)
     fullfile = os.path.join(args.bids, scan['type'], fname)
