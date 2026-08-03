@@ -12,7 +12,8 @@ requires = [
     'pyaml',
     'lxml',
     'six',
-    'jsonpath-ng'
+    'jsonpath-ng',
+    'pybids'
 ]
 
 test_requirements = [

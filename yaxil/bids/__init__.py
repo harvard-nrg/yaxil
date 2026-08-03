@@ -13,6 +13,8 @@ from pydicom.tag import Tag
 import yaxil.commons as commons
 from collections import defaultdict
 from pydicom.errors import InvalidDicomError
+from bids import BIDSLayout
+
 with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     from nibabel.nicom import csareader
@@ -45,6 +47,9 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
     # check for dataset_description.json and create it if necessary
     check_dataset_description(out_base)
 
+    # create BIDSLayout
+    layout = BIDSLayout(out_base, validate=False)
+
     # define bids and sourcedata base directories
     sourcedata_base = os.path.join(
         out_base,
@@ -57,6 +62,7 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
         'sub-{0}'.format(legal.sub('', bids_sub)),
         'ses-{0}'.format(legal.sub('', bids_ses))
     )
+
     # put arguments in a struct for convenience
     args = commons.struct(
         xnat=yaxil_session,
@@ -69,9 +75,11 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
         bids_ses=bids_ses,
         bids=bids_base,
         out_base=out_base,
+        layout=layout,
         sourcedata=sourcedata_base,
         in_mem=in_mem
     )
+
     # process func, anat, and fmap
     refs = dict()
     refs.update(proc_func(config, args))    
@@ -81,17 +89,17 @@ def bids_from_config(yaxil_session, scans_metadata, config, out_base, in_mem=Fal
     logger.info(json.dumps(refs, indent=2))
     proc_fmap(config, args, refs)
 
-def check_dataset_description(bids_dir, bids_version='1.4.0', ds_type='raw'):
+def check_dataset_description(bids_dir, bids_version='1.9.0', ds_type='raw'):
     os.makedirs(bids_dir, exist_ok=True)
     ds_desc = os.path.join(bids_dir, 'dataset_description.json')
     if not os.path.exists(ds_desc):
         js = {
-            'Name': 'Made by YAXIL',
+            'Name': 'Made with <3 by YAXIL',
             'BIDSVersion': bids_version,
             'DatasetType': ds_type
         }
         with open(ds_desc, 'w') as fo:
-            fo.write(json.dumps(js))
+            fo.write(json.dumps(js, indent=2))
 
 def proc_func(config, args):
     '''
@@ -105,9 +113,10 @@ def proc_func(config, args):
     return refs
 
 def _restem(source, newstem):
+    source = Path(source)
     parent = source.parent
     suffix = ''.join(source.suffixes)
-    oldstem = re.sub('.nii', '', source.stem)
+    oldstem = re.sub(r'\.nii', '', source.stem)
     source_sidecar = Path(parent, f'{oldstem}.json')
     destination = Path(parent, f'{newstem}{suffix}')
     destination_sidecar = Path(parent, f'{newstem}.json')
@@ -125,9 +134,7 @@ def _proc_func(scan, config, args):
     files = list()
     sub = legal.sub('', args.bids_sub)
     ses = legal.sub('', args.bids_ses)
-    templ = 'sub-${sub}_ses-${ses}'
-    if 'task' in scan:
-        templ += '_task-${task}'
+    templ = 'sub-${sub}_ses-${ses}_task-${task}'
     if 'acquisition' in scan:
         templ += '_acq-${acquisition}'
     if 'direction' in scan:
@@ -139,13 +146,13 @@ def _proc_func(scan, config, args):
     stem = templ.safe_substitute(
         sub=sub,
         ses=ses,
-        task=scan.get('task', None),
+        task=scan.get('task', 'unknown'),
         acquisition=scan.get('acquisition', None),
         run=scan.get('run', None),
         direction=scan.get('direction', None),
         modality=scan.get('modality', None)
     )
-    stem_noecho = re.sub('_echo-%e', '', stem)
+    stem_noecho = re.sub(r'_echo-%e', '', stem)
     # download data to bids sourcedata directory
     sourcedata_dir = Path(args.sourcedata, scan['type'])
     sourcedata_dir.mkdir(parents=True, exist_ok=True)
@@ -157,6 +164,7 @@ def _proc_func(scan, config, args):
         [
             scanid
         ],
+        project=args.project,
         out_dir=dicom_dir,
         attempts=3,
         in_mem=args.in_mem
@@ -168,14 +176,33 @@ def _proc_func(scan, config, args):
     fullfile = Path(scandir, fname)
     logger.info(f'converting {dicom_dir} to {fullfile}')
     convert(dicom_dir, fullfile, comments='')
-    # remove echo entity if the current scan is a single echo
-    wildcard = re.sub('_echo-%e', '_echo-*', fname)
+    # glob for all generated nifti files
+    wildcard = re.sub(r'_echo-%e', '_echo-*', fname)
     logger.info(f'running glob {wildcard} on {scandir} for niftis')
     niftis = list(scandir.glob(wildcard))
+    # rename any produced noRF files from "_bold_noRF" to "_noRF"
+    for nifti in niftis:
+        nifti = str(nifti)
+        src = Path(re.sub(r'_bold\.nii', '_bold_noRF.nii', nifti))
+        dst = Path(re.sub(r'_bold\.nii', '_noRF.nii', nifti))
+        rename_nifti_json_pair(src, dst)
+    # remove echo entity if the current scan is single echo
     if len(niftis) == 1:
+        bold_src = niftis.pop()
+        norf_src = Path(re.sub(r'_bold\.nii', '_noRF.nii', str(bold_src)))
+        entities = args.layout.parse_file_entities(bold_src)
+        del entities['echo']
+        bold_dst = args.layout.build_path(entities)
+        norf_dst = re.sub(r'_bold\.nii', '_noRF.nii', bold_dst)
+        # rename bold nifti
+        logger.info(f'renaming {bold_src} to {bold_dst}')
+        rename_nifti_json_pair(bold_src, bold_dst)
         niftis = [
-            _restem(niftis.pop(), stem_noecho)
+            Path(bold_dst)
         ]
+        # now rename any corresponding noRF
+        rename_nifti_json_pair(norf_src, norf_dst)
+        # update default stem to stem without echo entity
         stem = stem_noecho
     # compile list of files
     for nifti in niftis:
@@ -185,7 +212,7 @@ def _proc_func(scan, config, args):
     bits_stored = get_bits_stored(dicom_dir)
     abs_table_position = get_abs_table_position(dicom_dir)
     # add xnat source information and bits stored to json sidecar
-    wildcard = re.sub('_echo-%e', '_echo-*', f'{stem}.json')
+    wildcard = re.sub(r'_echo-%e', '_echo-*', f'{stem}.json')
     logger.info(f'running glob {wildcard} on {scandir} for sidecars')
     for sidecar_file in scandir.glob(wildcard):
         with open(sidecar_file) as fo:
@@ -214,6 +241,18 @@ def _proc_func(scan, config, args):
             )
         )
     return files
+
+def rename_nifti_json_pair(src, dst):
+    # rename nifti
+    if src.exists():
+        logger.info(f'renaming {src} to {dst}')
+        src.rename(dst)
+    # rename corresponding json
+    js_src = Path(re.sub(r'\.nii(\.gz)?$', '.json', str(src)))
+    js_dst = Path(re.sub(r'\.nii(\.gz)?$', '.json', str(dst)))
+    if js_src.exists():
+        logger.info(f'renaming {js_src} to {js_dst}')
+        js_src.rename(js_dst)
 
 def get_bits_stored(dicom_dir):
     '''
@@ -297,7 +336,16 @@ def _proc_anat(scan, config, args):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti (edge cases for T1w_vNav_setter)
     fname = '{0}.nii.gz'.format(fbase)
     refs.append(os.path.join(f'ses-{ses}', scan['type'], fname))
@@ -310,7 +358,7 @@ def _proc_anat(scan, config, args):
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
             convert(f, fullfile, single_file=True, comments='')
-        ffbase = re.sub('.nii(.gz)?', '', fullfile)
+        ffbase = re.sub(r'\.nii(\.gz)?$', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
         sidecar_files = glob(expr)
@@ -319,7 +367,7 @@ def _proc_anat(scan, config, args):
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
             convert(f, fullfile, single_file=True, comments='')
-        ffbase = re.sub('.nii(.gz)?', '', fullfile)
+        ffbase = re.sub(r'\.nii(\.gz)?$', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
         sidecar_files = glob(expr)
@@ -392,7 +440,16 @@ def _proc_dwi(scan, config, args):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti
     fname = '{0}.nii.gz'.format(fbase)
     refs.append(os.path.join(f'ses-{ses}', scan['type'], fname))
@@ -459,7 +516,16 @@ def _proc_fmap(scan, config, args, refs=None):
     os.makedirs(sourcedata_dir, exist_ok=True)
     dicom_dir = os.path.join(sourcedata_dir, f'{fbase}.dicom')
     logger.info('downloading session=%s, scan=%s, loc=%s', args.session, scan['scan'], dicom_dir)
-    args.xnat.download(args.session, [scan['scan']], out_dir=dicom_dir, attempts=3, in_mem=args.in_mem)
+    args.xnat.download(
+        args.session,
+        [
+            scan['scan']
+        ],
+        project=args.project,
+        out_dir=dicom_dir,
+        attempts=3,
+        in_mem=args.in_mem
+    )
     # convert to nifti
     fname = '{0}.nii.gz'.format(fbase)
     fullfile = os.path.join(args.bids, scan['type'], fname)
@@ -574,8 +640,8 @@ def _fmap_phasediff(bids_base, basename):
             raise FmapError(f'found {numfiles} fmap files from {expr}')
         source = files.pop()
         fname = re.sub(
-            rf'phasediff_e\d+_ph',
-            f'phasediff',
+            r'phasediff_e\d+_ph',
+            'phasediff',
             source.name
         )
         destination = Path(source.parent, fname)
@@ -607,7 +673,7 @@ def convert(input, output, single_file=False, comments=None):
     dirname = os.path.dirname(output)
     os.makedirs(dirname, exist_ok=True)
     basename = os.path.basename(output)
-    basename = re.sub('.nii(.gz)?', '', basename)
+    basename = re.sub(r'\.nii(\.gz)?$', '', basename)
     dcm2niix = commons.which('dcm2niix')
     cmd = [
         'dcm2niix'
@@ -623,6 +689,7 @@ def convert(input, output, single_file=False, comments=None):
     cmd.extend([
         '-b', 'y',
         '-z', 'y',
+        '-i', 'y',
         '-f', basename,
         '-o', dirname,
         input
