@@ -66,6 +66,7 @@ def main():
     # print readme and exit
     if args.readme:
         content = readme(auth, args.label, args.project)
+        yaxil.end_session(auth)
         print(content)
         sys.exit(0)
 

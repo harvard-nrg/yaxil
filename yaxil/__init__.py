@@ -100,14 +100,7 @@ def start_session(auth):
     )
     if r.status_code != requests.codes.ok:
         raise SessionError(f'response not ok ({r.status_code}) from {r.url}')
-    return XnatAuth(
-        username=auth.username,
-        password=auth.password,
-        url=auth.url,
-        cookie={
-            'JSESSIONID': r.text
-        }
-    )
+    return r.text
 
 def end_session(auth):
     if not auth.cookie:
@@ -170,10 +163,15 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
         XnatAuth(url='https://xnat.example.com', username='username', password='*****')
     '''
     result = tuple()
+
+    # Look for XNAT_JSESSION environment variable
+    jsession = os.environ.get('XNAT_JSESSION', None)
+
     # First, look for authentication data in ~/.xnat_auth
     if alias:
         logger.debug(f'returning authentication data from {cfg}')
-        return auth(alias)
+        return auth(alias, jsession=jsession)
+
     # Second, look for authentication data from --host, --user, --password function arguments
     authargs = (host, username)
     if any(authargs):
@@ -182,13 +180,18 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
         logger.debug('returning authentication data from command line')
         if not password:
             password = gp.getpass('Enter XNAT passphrase:')
-        obj = XnatAuth(
+        result = XnatAuth(
             url=host,
             username=username,
             password=password,
-            cookie=None
+            cookie=dict()
         )
-        return start_session(obj)
+        # create a server-side session
+        if jsession:
+            result.cookie['JSESSIONID'] = jsession
+        result.cookie['JSESSIONID'] = start_session(result)
+        return result
+
     # Third, look for authentication data in environment variables
     host = os.environ.get('XNAT_HOST', None)
     username = os.environ.get('XNAT_USER', None)
@@ -200,16 +203,21 @@ def auth2(alias=None, host=None, username=None, password=None, cfg='~/.xnat_auth
         logger.debug('returning authentication data from environment variables')
         if not password:
             password = gp.getpass('Enter XNAT passphrase:')
-        obj = XnatAuth(
+        result = XnatAuth(
             url=host,
             username=username,
             password=password,
-            cookie=None
+            cookie=dict()
         )
-        return start_session(obj)
+        # create a server-side session
+        if jsession:
+            result.cookie['JSESSIONID'] = jsession
+        result.cookie['JSESSIONID'] = start_session(result)
+        return result
+
     raise AuthError('you must provide authentication data using xnat_auth, command line, or environment variables')
 
-def auth(alias=None, url=None, cfg="~/.xnat_auth"):
+def auth(alias=None, url=None, cfg="~/.xnat_auth", jsession=None):
     '''
     Read connection details from an xnat_auth XML file
 
@@ -224,6 +232,8 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
     :type url: str
     :param cfg: Configuration file
     :type cfg: str
+    :param jsession: Server session ID
+    :type jsession: str
     :returns: Named tuple of (url, username, password)
     :rtype: :mod:`yaxil.XnatAuth`
     '''
@@ -267,13 +277,18 @@ def auth(alias=None, url=None, cfg="~/.xnat_auth"):
         raise AuthError("too many passwords for %s in %s" % (alias, cfg))
     else:
         password = password.pop().text
-    obj = XnatAuth(
+    # create authentication  object
+    result = XnatAuth(
         url=url.pop().text,
         username=username.pop().text,
         password=password,
-        cookie=None
+        cookie=dict()
     )
-    return start_session(obj)
+    # create a server-side session if one was not provided
+    if jsession:
+        result.cookie['JSESSIONID'] = jsession
+    result.cookie['JSESSIONID'] = start_session(result)
+    return result
 
 Subject = col.namedtuple('Subject', [
     'uri',

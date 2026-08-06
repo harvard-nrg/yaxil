@@ -43,7 +43,8 @@ class Session(object):
         return yaxil.history(self._auth, *args, **kwargs)
 
     def __enter__(self):
-        self._auth = yaxil.start_session(self._auth)
+        jsession = yaxil.start_session(self._auth)
+        self._auth.cookie['JSESSIONID'] = jsession
         return self
 
     def __exit__(self, type, value, traceback):
