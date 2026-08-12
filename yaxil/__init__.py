@@ -996,7 +996,6 @@ def __get_xsi_types(auth, aid):
 def __experiment_details(auth, aid):
   path = f'/data/experiments'
   columns = [
-    'URI',
     'xsiType',
     'ID',
     'label',
