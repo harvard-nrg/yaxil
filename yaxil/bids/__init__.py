@@ -357,7 +357,7 @@ def _proc_anat(scan, config, args):
         fullfile = fullfile.replace('_T1vnav', '_split-%r_T1vnav')
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
-            convert(f, fullfile, single_file=True, comments='')
+            convert(f, fullfile, single_file=True, ignore_2d=False, comments='')
         ffbase = re.sub(r'\.nii(\.gz)?$', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
@@ -366,7 +366,7 @@ def _proc_anat(scan, config, args):
         fullfile = fullfile.replace('_T2vnav', '_split-%r_T2vnav')
         for f in glob(os.path.join(dicom_dir, '*.dcm')):
             logger.debug('converting single file %s to %s', f, fullfile)
-            convert(f, fullfile, single_file=True, comments='')
+            convert(f, fullfile, single_file=True, ignore_2d=False, comments='')
         ffbase = re.sub(r'\.nii(\.gz)?$', '', fullfile)
         expr = ffbase.replace('%r', '*') + '.json'
         logger.debug('globbing for %s', expr)
@@ -666,7 +666,7 @@ def iterconfig(config, scan_type):
                 })
                 yield scan
 
-def convert(input, output, single_file=False, comments=None):
+def convert(input, output, single_file=False, ignore_2d=True, comments=None):
     '''
     Run dcm2niix on input file
     '''
@@ -682,6 +682,10 @@ def convert(input, output, single_file=False, comments=None):
         cmd.extend([
             '-s', 'y'
         ])
+    if ignore_2d:
+        cmd.extend([
+            '-i', 'y'
+        ])
     if comments is not None:
         cmd.extend([
             '-c', comments
@@ -689,7 +693,6 @@ def convert(input, output, single_file=False, comments=None):
     cmd.extend([
         '-b', 'y',
         '-z', 'y',
-        '-i', 'y',
         '-f', basename,
         '-o', dirname,
         input
