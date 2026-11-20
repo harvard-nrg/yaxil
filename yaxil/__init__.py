@@ -371,6 +371,7 @@ Experiment = col.namedtuple('Experiment', [
     'subject_id',
     'subject_label',
     'archived_date',
+    'study_date',
     'note'
 ])
 '''
@@ -419,6 +420,7 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None, in
         'xnat:subjectassessordata/subject_id',
         'subject_label',
         'insert_date',
+        'date',
         'note'
     ]
     payload = {
@@ -467,6 +469,7 @@ def experiments(auth, label=None, project=None, subject=None, daterange=None, in
             subject_id=item['subject_ID'],
             subject_label=item['subject_label'],
             archived_date=item['insert_date'],
+            study_date=item['date'],
             note=item['note']
         )
 
